@@ -283,6 +283,29 @@ textarea:focus-visible{outline:3px solid var(--glass);outline-offset:2px}
 .flag{font-size:12.5px;font-weight:700}
 .bigstat{font-family:var(--fd);font-size:40px;line-height:1;color:var(--accent)}
 .legendsw{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted)}
+.entry{align-self:start;padding:22px}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px;margin-bottom:16px}
+.seg button{border:0;background:transparent;border-radius:9px;padding:10px;font-weight:700;color:var(--muted)}
+.seg button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.entry select,.entry input{width:100%}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .l{font-size:12px;font-weight:700;color:var(--muted)}
+.kpi .v{font-size:26px;font-weight:600;line-height:1.15}
+.kpi .v small{font-size:13px;color:var(--muted);font-weight:500}
+.meter{height:6px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:6px}
+.meter i{display:block;height:100%}
+.pcard{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:8px}
+.pcard::after{content:"";position:absolute;right:-26px;top:-26px;width:92px;height:92px;border-radius:50%;background:var(--c);opacity:.12}
+.pnum{font-family:var(--fd);font-size:40px;line-height:1;color:var(--c)}
+.ppts{margin-top:auto;font-weight:700;color:var(--c)}.ppts .mono{font-size:22px}
+.goal{margin-top:14px;display:grid;grid-template-columns:auto 1fr;gap:8px 18px}
+.goal dt{font-size:12px;font-weight:700;color:var(--muted);padding-top:2px}.goal dd{margin:0}
+@media (max-width:560px){.goal{grid-template-columns:1fr}}
+.modal.wide{max-width:880px}
+.linkbtn{border:0;background:none;padding:0;font-weight:600;color:inherit;text-decoration:underline dotted}
+.roster td,.roster th{white-space:nowrap}
 #printzone{display:none}
 @media print{
   body.printing>*:not(#printzone){display:none!important}
@@ -332,8 +355,8 @@ const fx=(x,n=2)=>(Math.round(x*10**n+1e-9)/10**n).toFixed(n);
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>{const n=parseFloat(String(v).replace(/,/g,'').trim());return isNaN(n)?NaN:n};
 function toast(msg,ms=2200){const t=document.createElement('div');t.className='toast';t.textContent=msg;$('#toastbox').innerHTML='';$('#toastbox').appendChild(t);setTimeout(()=>t.remove(),ms)}
-function modal(html,onMount){const bg=document.createElement('div');bg.className='modalbg';bg.innerHTML=`<div class="modal" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(bg);const close=()=>bg.remove();bg.addEventListener('click',e=>{if(e.target===bg||e.target.closest('[data-close]'))close()});onMount&&onMount(bg.firstElementChild,close);return close}
-let cleanup=[];
+function modal(html,onMount,wide){const bg=document.createElement('div');bg.className='modalbg';bg.innerHTML=`<div class="modal${wide?' wide':''}" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(bg);const close=()=>bg.remove();bg.addEventListener('click',e=>{if(e.target===bg||e.target.closest('[data-close]'))close()});onMount&&onMount(bg.firstElementChild,close);return close}
+let cleanup=[];let HOME_TAB='stu';
 function onLeave(fn){cleanup.push(fn)}
 
 /* 한글 분해 */
@@ -349,7 +372,9 @@ function go(r){if(location.hash==='#'+r)render();else location.hash=r}
 function render(){
   cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];
   let r=(location.hash||'#home').slice(1);if(!ROUTES[r])r='home';
-  if(!['home','teacher'].includes(r)&&!getStudent()){const want=r;r='home';setTimeout(()=>askStudent(()=>go(want)),50)}
+  if(r==='teacher'&&!TEACH){r='home';HOME_TAB='tea'}
+  else if(!['home','teacher'].includes(r)&&!getStudent()){r='home';HOME_TAB='stu';setTimeout(()=>toast('먼저 학년·반·번호·이름을 입력하고 입장하세요'),60)}
+  if(location.hash!=='#'+r&&r==='home'&&location.hash)history.replaceState(null,'','#home');
   const c=$('#crumbs');updateWho();
   if(r==='home')c.innerHTML='';
   else if(r==='teacher')c.innerHTML=`<span>›</span><span>교사용 결과</span>`;
@@ -582,33 +607,50 @@ function curveSVG(o){
 
 /* ===== 1. 첫 화면 ===== */
 function renderHome(){
-  const best=store.get('best',{});
+  const opt=(n,v)=>Array.from({length:n},(_,i)=>`<option ${String(i+1)===String(v)?'selected':''}>${i+1}</option>`).join('');
+  const P=[['01','기초 이론',20,'#2F9E6A','산·염기의 정의, pH, 지시약, 중화 반응을 초보·중급·고급 게임으로 점검합니다.'],['02','기초 실습',20,'#2A7584','뷰렛·피펫 필러·안전 수칙·NaOH 조제·지시약 변색까지 7개 미션을 완료합니다.'],['03','심화 실습',40,'#9C1F74','식초 속 아세트산을 직접 적정합니다. 지시약 선택과 종말점 판단이 핵심이에요.'],['04','결과 보고서',20,'#C8641E','측정값과 계산이 채워진 보고서에 고찰을 쓰고 제출하면 선생님이 확인합니다.']];
   app.innerHTML=`
   <section class="hero">
     <div>
       <p class="school">${SCHOOL} <span>${DEPT}</span></p>
       <p class="eyebrow" style="margin-top:14px">바이오기초화학 Ⅲ. 물의 화학 · 02 수소 이온의 농도: 산과 염기</p>
       <h1 style="margin-top:8px">중화 적정<br>실험실</h1>
-      <p class="lead">보안경을 쓰고 실험복 단추를 잠그세요. 이곳에서는 NaOH가 튀어도, 종말점을 지나쳐도 괜찮습니다. 이론 게임으로 산·염기를 익히고, 가상 실험대에서 뷰렛과 지시약을 다뤄 본 뒤, 식초 속 아세트산 농도를 직접 구해 결과 보고서까지 써 봅니다.</p>
-      <div class="row" style="margin-top:20px">
-        <button class="btn pri" data-go="hub">중화 적정 실험실 입장 →</button>
-        <span class="small muted">입장할 때 학년·반·번호·이름을 적어요</span>
-      </div>
+      <p class="lead">보안경을 쓰고 실험복 단추를 잠그세요. 이론 게임으로 산·염기를 익히고, 가상 실험대에서 뷰렛과 지시약을 다뤄 본 뒤, 식초 속 아세트산 농도를 직접 구해 결과 보고서까지 제출합니다.</p>
+      <div class="door" style="margin-top:18px">${heroArt()}</div>
     </div>
-    <div class="door">${heroArt()}</div>
+    <div class="entry card" role="region" aria-label="입장">
+      <div class="seg" role="tablist"><button role="tab" id="tabS" aria-selected="${HOME_TAB==='stu'}">학생 입장</button><button role="tab" id="tabT" aria-selected="${HOME_TAB==='tea'}">교사 입장</button></div>
+      ${HOME_TAB==='stu'?(CUR?`<div class="stack"><p style="font-size:17px"><b>${esc(sLabel(CUR))}</b> 입장 중</p><button class="btn pri" data-go="hub" style="justify-content:center">실험실로 이동 →</button><button class="btn" id="other" style="justify-content:center">다른 학생으로 입장</button></div>`:`
+      <form id="stuf" class="stack" style="gap:12px" autocomplete="off">
+        <div class="row" style="gap:8px">
+          <label class="stack" style="gap:2px;flex:1;min-width:70px"><span class="small muted">학년</span><select id="sg"><option value="">선택</option>${opt(3)}</select></label>
+          <label class="stack" style="gap:2px;flex:1;min-width:70px"><span class="small muted">반</span><select id="sc"><option value="">선택</option>${opt(15)}</select></label>
+          <label class="stack" style="gap:2px;flex:1;min-width:70px"><span class="small muted">번호</span><select id="sn"><option value="">선택</option>${opt(40)}</select></label>
+        </div>
+        <label class="stack" style="gap:2px"><span class="small muted">이름</span><input id="snm" maxlength="20" placeholder="이름을 입력하세요"></label>
+        <p class="small" id="smsg" style="color:var(--bad);min-height:1.2em"></p>
+        <button class="btn pri" type="submit" style="justify-content:center">실험실 입장하기 →</button>
+        <p class="small muted">학년·반·번호·이름을 모두 입력해야 입장할 수 있어요. 같은 기기에서 같은 정보로 들어오면 이어서 진행됩니다.</p>
+      </form>`):`
+      <form id="teaf" class="stack" style="gap:12px" autocomplete="off">
+        <label class="stack" style="gap:2px"><span class="small muted">교사 비밀번호</span><input id="tpw" type="password" inputmode="numeric" maxlength="20" placeholder="••••" class="mono"></label>
+        <p class="small" id="tmsg" style="color:var(--bad);min-height:1.2em"></p>
+        <button class="btn" type="submit" style="justify-content:center;background:var(--ink);color:var(--bg);border-color:var(--ink)">교사 화면 열기</button>
+        <p class="small muted">학생별 수행평가 점수, 결과 보고서, 초기화와 비밀번호 변경은 교사 화면에서만 할 수 있어요.</p>
+      </form>`}
+    </div>
   </section>
   <section class="units">
-    <h3 style="margin-bottom:12px">실험실 목록</h3>
-    <div class="grid g2">
-      <button class="unit on" data-go="hub"><span class="num">01</span><span><b>산 염기 중화 적정</b><br><span class="small muted">산·염기의 정의 · pH · 지시약 · 중화 반응 · 식초 속 아세트산 정량</span><br>
-      <span class="row" style="gap:6px;margin-top:8px">${['theory','practice','adv'].map(k=>best[k]!=null?`<span class="pill ok">${CRUMB[k]} ${k==='practice'?best[k]+'% 완료':'최고 '+best[k]+'점'}</span>`:'').join('')||'<span class="pill acc">운영 중</span>'}</span></span></button>
-      <div class="unit off" aria-disabled="true"><span class="num">02</span><span><b>완충 용액</b><br><span class="small muted">공통 이온 효과 · 아세트산 완충 용액 · 혈액의 탄산 완충계</span><br><span class="pill" style="margin-top:8px">준비 중</span></span></div>
-    </div>
-  </section>
-  ${myRecordsHTML()}
-  <p class="small muted" style="margin-top:28px;text-align:right"><button class="btn sm" data-go="teacher">교사용 결과 보기</button></p>`;
-  const cb=$('#chgme');if(cb)cb.onclick=()=>askStudent(()=>render());
-  $$('[data-rep]').forEach(b=>b.onclick=()=>showSavedReport(+b.dataset.rep));
+    <div class="row" style="justify-content:space-between;align-items:flex-end"><div><p class="eyebrow">수행평가 · 100점</p><h3 style="margin-top:4px;font-size:24px">중화 적정 실험은 4단계로 평가합니다</h3></div></div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:14px">${P.map(p=>`<div class="card pcard" style="--c:${p[3]}"><span class="pnum">${p[0]}</span><b style="font-size:18px">${p[1]}</b><p class="small muted">${p[4]}</p><span class="ppts"><span class="mono">${p[2]}</span>점</span></div>`).join('')}</div>
+    <dl class="goal card"><dt>학습 목표</dt><dd>중화 반응의 양적 관계를 이해하고, 식초 속 아세트산의 농도를 중화 적정으로 구할 수 있다.</dd><dt>핵심 포인트</dt><dd>적정의 종류에 맞는 지시약을 고르고, 색이 변해 흔들어도 유지되는 첫 방울(종말점)에서 멈춘다.</dd></dl>
+  </section>`;
+  $('#tabS').onclick=()=>{HOME_TAB='stu';renderHome()};$('#tabT').onclick=()=>{HOME_TAB='tea';renderHome()};
+  const o=$('#other');if(o)o.onclick=()=>{CUR=null;updateWho();renderHome()};
+  const sf=$('#stuf');if(sf){$('#sg').focus();sf.addEventListener('submit',e=>{e.preventDefault();const g=$('#sg').value,c=$('#sc').value,n=$('#sn').value,name=$('#snm').value.trim().replace(/\s+/g,' ');
+    if(!g||!c||!n){$('#smsg').textContent='학년·반·번호를 모두 고르세요';return}if(name.length<2){$('#smsg').textContent='이름을 2글자 이상 입력하세요';return}
+    setStudent(g,c,n,name);go('hub')})}
+  const tf=$('#teaf');if(tf){$('#tpw').focus();tf.addEventListener('submit',e=>{e.preventDefault();const pw=$('#tpw').value.trim();if(!pw){$('#tmsg').textContent='비밀번호를 입력하세요';return}teacherLogin(pw,$('#tmsg'))})}
 }
 function heroArt(){
   const pp=IND.pp;
@@ -637,21 +679,22 @@ function renderHub(){
   <p class="muted" style="margin-top:8px;max-width:64ch">순서대로 하면 가장 좋습니다. 이론에서 산·염기와 지시약을 익히고, 실습에서 기구와 안전 수칙·지시약 변색을 다뤄 본 뒤, 심화 실습에서 식초 속 아세트산 농도를 구하고 결과 보고서를 제출하세요.</p>
   <div class="grid g3" style="margin-top:22px">
     <button class="mode" data-go="theory">
-      <span class="tag">STEP 1 · 게임</span><h3>기초 이론</h3>
+      <span class="tag">STEP 1 · 게임 · 20점</span><h3>기초 이론</h3>
       ${hubArt(1)}
       <ul><li>초성 · 자음 · OX · 괄호 넣기</li><li>짝 맞추기 · 순서 배열 · 골라 골라 · 계산</li><li>초보 / 중급 / 고급 난이도</li></ul>
     </button>
     <button class="mode" data-go="practice">
-      <span class="tag">STEP 2 · 가상 실험대</span><h3>기초 실습</h3>
+      <span class="tag">STEP 2 · 가상 실험대 · 20점</span><h3>기초 실습</h3>
       ${hubArt(2)}
       <ul><li>실험 기구 명칭과 사용법 · 뷰렛 눈금 읽기</li><li>실습실 안전 수칙 · 0.1 M NaOH 만들기</li><li>지시약 변색 관찰 · 지시약 선택</li></ul>
     </button>
     <button class="mode" data-go="adv">
-      <span class="tag">STEP 3 · 적정 → 보고서</span><h3>심화 실습</h3>
+      <span class="tag">STEP 3 · 심화 40점 + 보고서 20점</span><h3>심화 실습</h3>
       ${hubArt(3)}
       <ul><li>1단계: 교과서 과제 — 식초 + NaOH</li><li>2단계: 염산 · 황산 · 암모니아수</li><li>지시약 선택 · 종말점 판단 · 결과 보고서 제출</li></ul>
     </button>
-  </div>`;
+  </div>${myScoreHTML()}${myRecordsHTML()}`;
+  $$('[data-rep]').forEach(b=>b.onclick=()=>showSavedReport(+b.dataset.rep));
 }
 function hubArt(n){
   if(n===1)return `<svg viewBox="0 0 240 120" aria-hidden="true"><g font-family="Do Hyeon,sans-serif" font-size="34">${['ㅈ','ㅅ','ㅇ'].map((c,i)=>`<rect x="${20+i*70}" y="22" width="58" height="70" rx="10" fill="var(--lcd)"/><text x="${49+i*70}" y="70" text-anchor="middle" fill="var(--lcd-ink)">${c}</text>`).join('')}</g></svg>`;
@@ -923,7 +966,8 @@ function renderPractice(){
   $$('[data-t]').forEach(b=>b.onclick=()=>{PT=b.dataset.t;cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];renderPractice()});
   ({tools:pTools,burette:pBurette,pipette:pPipette,safety:pSafety,naoh:pNaoh,color:pColor,choose:pChoose})[PT]($('#pbody'));
 }
-function markDone(k){const d=store.get('prac',{});if(!d[k]){d[k]=1;store.set('prac',d);record('기초 실습',(PTABS.find(x=>x[0]===k)||[k,k])[1],100,'미션 완료');const b2=store.get('best',{});b2.practice=Math.round(Object.keys(d).length/PTABS.length*100);store.set('best',b2);const t=$(`[data-t="${k}"]`);if(t&&!t.querySelector('.ck'))t.insertAdjacentHTML('beforeend',' <span class="ck">✓</span>')}
+const MD=new Set();
+function markDone(k){const d=store.get('prac',{});const mk=(CUR&&CUR.id)+k;if(MD.has(mk))return;MD.add(mk);record('기초 실습',(PTABS.find(x=>x[0]===k)||[k,k])[1],100,'미션 완료');if(!d[k]){d[k]=1;store.set('prac',d);const b2=store.get('best',{});b2.practice=Math.round(Object.keys(d).length/PTABS.length*100);store.set('best',b2);const t=$(`[data-t="${k}"]`);if(t&&!t.querySelector('.ck'))t.insertAdjacentHTML('beforeend',' <span class="ck">✓</span>')}
   const i=PTABS.findIndex(x=>x[0]===k);const nx=PTABS[i+1];
   toast(nx?`미션 완료! 다음: ${nx[1]}`:'기초 실습 미션을 모두 완료했어요!');
 }
@@ -1525,7 +1569,7 @@ function reportHTML(ed){
    <div class="sec"><b>8. 오차의 원인</b><div class="stack" style="gap:4px">${ERRS.map((e,i)=>ed||R.errs[i]?`<label class="small row" style="gap:6px">${cb(R.errs[i],`data-err="${i}"`)} ${e}</label>`:'').join('')}</div></div>
    <div class="sec"><b>9. 고찰</b>${ed?`<p class="small muted">종말점을 어떻게 판단했는지, 지시약을 왜 골랐는지, 세 번의 결과가 차이 난 이유, 다시 한다면 무엇을 바꿀지 적어 보세요. (40자 이상)</p><textarea id="rd" placeholder="예) 페놀프탈레인은 변색 범위가 pH 8.2~10.0이라 염기성 염이 생기는 중화점과 잘 맞았다. 1회차에서는 …">${esc(R.disc)}</textarea><span class="small muted" id="rlen"></span>`:`<p style="white-space:pre-wrap">${esc(R.disc)}</p>`}</div>
    <div class="sec"><b>10. 실습 평가 (자기 점검)</b><div class="stack" style="gap:4px">${[['waste','실험 후 시약을 산·염기 구별하여 폐수통에 처리했다'],['tidy','실험 후 실험 도구를 세척하여 정리했다'],['ppe','보안경·실험복·실험용 장갑을 끝까지 착용했다']].map(([k,t])=>`<label class="small row" style="gap:6px">${cb(R.clean[k],`data-cl="${k}"`)} ${t}</label>`).join('')}</div></div>
-   ${!ed&&A.graded?`<div class="sec"><b>11. 채점 결과</b><p>${A.graded.score}점 · 상대 오차 ${A.graded.relErr.toFixed(1)} %</p></div>`:''}
+   ${!ed&&A.graded?`<div class="sec"><b>11. 채점 결과</b><p>심화 실습 ${A.graded.lab40}/40 · 결과 보고서 ${A.graded.rep20}/20 · 상대 오차 ${A.graded.relErr.toFixed(1)} %</p></div>`:''}
   </div>`;
 }
 function aRep(el){
@@ -1553,7 +1597,6 @@ function gradeAdv(){
   const v=A.incVols;const range=Math.max(...v)-Math.min(...v);const repF=range<=.10?1:range<=.20?.6:range<=.4?.3:0;
   const indF=(A.firstIndOk?.8:0)+(A.firstChOk?.2:0);
   const trueC=st1?A.Cvin:A.Ca;const myC=num(A.calc.in.m0);const relErr=(myC-trueC)/trueC*100;
-  const discLen=R.disc.trim().length;const repF2=(discLen>=150?.6:discLen>=80?.45:.3)+(Object.values(R.errs).some(Boolean)?.2:0)+(Object.values(R.clean).filter(Boolean).length>=3?.2:Object.values(R.clean).filter(Boolean).length*.05);
   const items=st1?[
     ['실험 준비 (복장·준비물·시료·뷰렛)',10,((A.pts.prep0||0)+(A.pts.prep2||0)+(A.pts.prep4||0))/3],
     ['0.1 M NaOH 조제 (칭량)',5,A.pts.naoh||0],
@@ -1561,26 +1604,35 @@ function gradeAdv(){
     ['뷰렛 눈금 읽기',10,readF],
     ['종말점 판단 정확도',25,endF],
     ['재현성 (평균에 포함한 회차의 차이)',10,repF],
-    ['결과 계산',15,A.pts.calc||0],
-    ['결과 보고서 (고찰·오차 원인·정리)',10,Math.min(1,repF2)]]
+    ['결과 계산',15,A.pts.calc||0]]
    :[['실험 준비 (반응식·몰 비·시료·뷰렛)',15,((A.pts.prep0||0)+(A.pts.prep2||0)+(A.pts.prep4||0))/3],
     ['지시약 선택 · 종말점 색 예측',15,indF],
     ['뷰렛 눈금 읽기',10,readF],
     ['종말점 판단 정확도',25,endF],
     ['재현성 (평균에 포함한 회차의 차이)',10,repF],
-    ['결과 계산',15,A.pts.calc||0],
-    ['결과 보고서 (고찰·오차 원인·정리)',10,Math.min(1,repF2)]];
-  const score=Math.round(items.reduce((a,i)=>a+i[1]*i[2],0));
-  A.graded={items,score,veq,trueC,myC,relErr,range,endF};
+    ['결과 계산',15,A.pts.calc||0]];
+  const lab40=Math.round(items.reduce((a,i)=>a+i[1]*i[2],0)/90*40*10)/10;
+  const RS=reportScore(R);const rep20=RS.score;const score=Math.round((lab40+rep20)*10)/10;
+  A.graded={items,score,lab40,rep20,rparts:RS.parts,veq,trueC,myC,relErr,range,endF};
   const title=st1?'1단계 · 식초 속 아세트산':`2단계 · ${sc.title}`;
   const vols=A.trials.map(t=>fx(t.rf,1));
   const resultTxt=st1?`${A.calc.in.m0} M (${A.calc.in.pct} %)`:`${A.calc.in.m0} M`;
-  const detail=`지시약 ${ind.n}${A.firstIndOk?'':' (첫 선택 부적합: '+IND[A.firstInd].n+')'} · 적정 ${vols.join(' / ')} mL · 평균 ${A.calc.in.vbar} mL · 결과 ${resultTxt} · 실제 ${trueC.toFixed(4)} M · 상대오차 ${relErr.toFixed(1)} % · 고찰: ${R.disc.trim()}`;
+  const detail=`[심화 ${lab40}/40 · 보고서 ${rep20}/20] 지시약 ${ind.n}${A.firstIndOk?'':' (첫 선택 부적합: '+IND[A.firstInd].n+')'} · 적정 ${vols.join(' / ')} mL · 평균 ${A.calc.in.vbar} mL · 결과 ${resultTxt} · 실제 ${trueC.toFixed(4)} M · 상대오차 ${relErr.toFixed(1)} % · 고찰: ${R.disc.trim()}`;
   record('심화 실습',title,score,detail,{
     stage:A.stage,acid:sc.acid,titrant:st1?`NaOH ${A.Ct.toFixed(4)} M`:sc.titrant,ind:ind.n+(A.firstIndOk?'':' (첫 선택 '+IND[A.firstInd].n+')'),change:endChange(sc,ind),
-    ct:+A.Ct.toFixed(4),va:20,v1:vols[0],v2:vols[1],v3:vols[2],vbar:A.calc.in.vbar,myC:A.calc.in.m0,trueC:+trueC.toFixed(4),relErr:+relErr.toFixed(2),pct:st1?A.calc.in.pct:'',disc:R.disc.trim(),errs:ERRS.filter((e,i)=>R.errs[i]).join(' / '),score});
+    ct:+A.Ct.toFixed(4),va:20,v1:vols[0],v2:vols[1],v3:vols[2],vbar:A.calc.in.vbar,myC:A.calc.in.m0,trueC:+trueC.toFixed(4),relErr:+relErr.toFixed(2),pct:st1?A.calc.in.pct:'',disc:R.disc.trim(),errs:ERRS.filter((e,i)=>R.errs[i]).join(' / '),lab40,rep20,score});
   const reps=store.get('reports',[]);reps.push({time:new Date().toISOString(),title,ind:ind.n,result:resultTxt,score,html:reportHTML(false)});store.set('reports',reps.slice(-20));
   const b2=store.get('best',{});b2.adv=Math.max(b2.adv||0,score);store.set('best',b2);
+}
+function reportScore(R){
+  const d=R.disc.trim(),L=d.length;
+  const len=L>=150?8:L>=80?6:L>=40?4:0;
+  const KW=['지시약','종말점','중화점','페놀프탈레인','메틸 오렌지','BTB','분홍','변색','오차','농도','적정','공세척','눈금'];const hit=KW.filter(k=>d.includes(k)).length;
+  const kw=hit>=4?4:hit>=2?3:hit>=1?2:0;
+  const ne=Object.values(R.errs).filter(Boolean).length;const er=ne===0?0:ne<=4?4:2;
+  const nc=Object.values(R.clean).filter(Boolean).length;const cl=nc>=3?4:nc;
+  const parts=[['고찰 분량 (40 · 80 · 150자)',8,len],['고찰 핵심어 (지시약 · 종말점 · 오차 등)',4,kw],['오차 원인 분석 (1~4개)',4,er],['실습 평가 자기 점검',4,cl]];
+  return {score:len+kw+er+cl,parts};
 }
 function aGrade(el){
   const G=A.graded;if(!G){el.innerHTML='<div class="card">보고서를 먼저 제출하세요.</div>';return}
@@ -1591,8 +1643,10 @@ function aGrade(el){
   if(G.range>.2)notes.push(`평균에 포함한 회차들의 차이가 ${fx(G.range)} mL로 커요. 재현성을 높이려면 종말점 근처에서 한 방울 · 반 방울씩 넣으세요.`);
   const readBad=A.trials.filter(t=>t.rfOk<1).length;if(readBad)notes.push(`눈금 읽기에서 ${readBad}회 실수가 있었어요. 메니스커스 아랫면, 소수 첫째 자리까지!`);
   el.innerHTML=`<div class="grid g2">
-   <div class="card" style="text-align:center"><p class="eyebrow">모의 채점 (100점)</p><div class="score" style="margin-top:8px">${G.score}</div>
-    <p style="margin-top:8px">${G.score>=90?'적정 마스터! 종말점을 정확히 잡았어요.':G.score>=70?'잘했어요. 피드백을 보고 한 번 더 도전하면 만점!':'괜찮아요. 지시약과 종말점 판단을 다시 연습해 봐요.'}</p>
+   <div class="card" style="text-align:center"><p class="eyebrow">수행평가 채점</p>
+    <div class="row" style="justify-content:center;gap:28px;margin-top:10px"><div><div class="score">${G.lab40}</div><span class="small muted">심화 실습 / 40</span></div><div><div class="score">${G.rep20}</div><span class="small muted">결과 보고서 / 20</span></div></div>
+    <p style="margin-top:8px">${G.lab40>=36?'적정 마스터! 종말점을 정확히 잡았어요.':G.lab40>=28?'잘했어요. 피드백을 보고 한 번 더 도전하면 만점!':'괜찮아요. 지시약과 종말점 판단을 다시 연습해 봐요.'}</p>
+    <p class="small muted">결과 보고서 점수는 선생님 확인 후 조정될 수 있어요. 여러 번 제출하면 가장 높은 결과가 반영돼요.</p>
     <div class="row" style="justify-content:center;margin-top:10px"><span class="pill ${Math.abs(G.relErr)<=1?'ok':Math.abs(G.relErr)<=3?'warn':'bad'}">상대 오차 ${G.relErr.toFixed(1)} %</span></div>
     <p class="small muted" style="margin-top:8px">보고서가 ${SHEET_URL?'선생님 스프레드시트로 전송되었어요.':'이 브라우저에 저장되었어요.'}</p></div>
    <div class="card"><h3>정답 공개</h3><div class="tw"><table class="table" style="margin-top:8px"><tr><th></th><th>내 결과</th><th>실제</th></tr>
@@ -1601,7 +1655,8 @@ function aGrade(el){
     <tr><td>중화점 부피</td><td class="mono">${esc(A.calc.in.vbar)} mL</td><td class="mono">${fx(G.veq)} mL</td></tr></table></div></div></div>
    <div class="card" style="margin-top:14px"><h3>적정 곡선 위의 내 종말점</h3><p class="small muted" style="margin-top:4px">색 띠 = ${ind.n}의 변색 범위. 점 = 내가 멈춘 곳. 점선 = 실제 중화점.</p>
     <div style="margin-top:8px">${curveSVG({sc,Ca:A.Ca,Ct:A.Ct,ind,marks:A.trials.map((t,i)=>({v:t.V,label:`${i+1}회`}))})}</div></div>
-   <div class="grid g2" style="margin-top:14px"><div class="card"><h3>항목별 점수</h3><div class="tw"><table class="table" style="margin-top:8px"><tr><th>항목</th><th>점수</th></tr>${G.items.map(i=>`<tr><td style="text-align:left">${i[0]}</td><td class="mono">${Math.round(i[1]*i[2])} / ${i[1]}</td></tr>`).join('')}</table></div></div>
+   <div class="grid g2" style="margin-top:14px"><div class="card"><h3>항목별 점수</h3><div class="tw"><table class="table" style="margin-top:8px"><tr><th colspan="2">심화 실습 (40점)</th></tr>${G.items.map(i=>`<tr><td style="text-align:left">${i[0]}</td><td class="mono">${fx(i[1]*i[2]*40/90,1)} / ${fx(i[1]*40/90,1)}</td></tr>`).join('')}
+    <tr><th colspan="2">결과 보고서 (20점)</th></tr>${G.rparts.map(p=>`<tr><td style="text-align:left">${p[0]}</td><td class="mono">${p[2]} / ${p[1]}</td></tr>`).join('')}</table></div></div>
     <div class="card"><h3>피드백</h3>${notes.length?`<ul style="margin:8px 0 0;padding-left:18px">${notes.map(n=>`<li style="margin-bottom:6px">${esc(n)}</li>`).join('')}</ul>`:'<p style="margin-top:6px">완벽합니다. 지시약 선택, 종말점, 계산 모두 정확해요.</p>'}</div></div>
    <div class="row noprint" style="margin-top:16px"><button class="btn" id="prt">보고서 인쇄 / PDF</button><button class="btn pri" id="again">새 시료로 다시 도전</button>${st1?'<button class="btn" id="to2">2단계: 다른 산과 염기 →</button>':''}<button class="btn" id="back">심화 실습 처음으로</button></div>`;
   $('#prt',el).onclick=()=>{const reps=store.get('reports',[]);showSavedReport(reps.length-1,true)};
@@ -1617,35 +1672,35 @@ function showSavedReport(i,print){
   });
 }
 
-/* ===== 학생 등록 · 기록 전송 · 교사용 결과 ===== */
+/* ===== 수행평가 점수 (기초 이론 20 · 기초 실습 20 · 심화 실습 40 · 결과 보고서 20) ===== */
+const LVN=['초보','중급','고급'];
+const r1=x=>Math.round(x*10+1e-9)/10;
+const skeyOf=r=>`${r.grade}|${r.cls}|${r.no}|${r.name}`;
+function scoreOf(list,adjR){
+  const th=LVN.map(lv=>{let b=0;list.filter(x=>x.kind==='기초 이론'&&String(x.item).startsWith(lv)).forEach(x=>{const m=String(x.detail).match(/정답 (\d+)\/(\d+)/);if(m)b=Math.max(b,+m[1]/+m[2])});return b});
+  const t=r1(th.reduce((a,b)=>a+b,0)/3*20);
+  const names=PTABS.map(p=>p[1]);const done=new Set(list.filter(x=>x.kind==='기초 실습'&&names.includes(x.item)).map(x=>x.item));
+  const p=r1(done.size/PTABS.length*20);
+  let best=null;const subs=list.filter(x=>x.kind==='심화 실습');
+  subs.forEach(x=>{const m=String(x.detail).match(/\[심화 ([\d.]+)\/40 · 보고서 ([\d.]+)\/20\]/);if(m){const o={a:+m[1],r:+m[2],x};if(!best||o.a+o.r>best.a+best.r)best=o}});
+  const a=best?best.a:0;let r=best?best.r:0;const adjusted=adjR!=null&&adjR!==''&&!isNaN(+adjR);if(adjusted)r=+adjR;
+  return {t,p,a,r,total:r1(t+p+a+r),th,done,best,subs,adjusted,auto:best?best.r:0};
+}
+
+/* ===== 학생 입장 · 기록 ===== */
 function getStudent(){return CUR}
 const sLabel=s=>s?`${s.grade}학년 ${s.cls}반 ${s.no}번 ${s.name}`:'';
-function askStudent(then){
-  const opt=(n,v)=>Array.from({length:n},(_,i)=>`<option ${String(i+1)===String(v)?'selected':''}>${i+1}</option>`).join('');
-  modal(`<h3>실험실 출입 명부</h3><p class="small muted" style="margin-top:4px">학년·반·번호와 이름을 적어야 입장할 수 있어요. 활동 결과가 선생님께 전달됩니다.</p>
-   <form id="stuf" class="stack" style="margin-top:14px;gap:10px">
-    <div class="row" style="gap:8px">
-     <label class="stack" style="gap:2px;flex:1;min-width:80px"><span class="small">학년</span><select id="sg"><option value="">선택</option>${opt(3)}</select></label>
-     <label class="stack" style="gap:2px;flex:1;min-width:80px"><span class="small">반</span><select id="sc"><option value="">선택</option>${opt(15)}</select></label>
-     <label class="stack" style="gap:2px;flex:1;min-width:80px"><span class="small">번호</span><select id="sn"><option value="">선택</option>${opt(40)}</select></label>
-    </div>
-    <label class="stack" style="gap:2px"><span class="small">이름</span><input id="snm" maxlength="20" autocomplete="off" placeholder="홍길동"></label>
-    <p class="small muted">접속할 때마다 새로 적어야 해요. 다른 사람 이름으로 기록하지 마세요.</p>
-    <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">입장</button></div>
-   </form>`,(m,close)=>{
-    $('#sg',m).focus();
-    $('#stuf',m).addEventListener('submit',e=>{e.preventDefault();const name=$('#snm',m).value.trim().replace(/\s+/g,' ');
-      const g=$('#sg',m).value,c=$('#sc',m).value,n=$('#sn',m).value;
-      if(!g||!c||!n){toast('학년·반·번호를 모두 고르세요');return}
-      if(name.length<2){toast('이름을 2글자 이상 입력하세요');return}
-      const st={grade:g,cls:c,no:n,name,id:`${g}${String(c).padStart(2,'0')}${String(n).padStart(2,'0')}_${name}`};
-      CUR=st;A=null;Q=null;close();updateWho();toast(`${sLabel(st)} 입장!`);record('입장','실험실 입장','', '');then&&then()});
-  });
+function setStudent(g,c,n,name){
+  CUR={grade:g,cls:c,no:n,name,id:`${g}${String(c).padStart(2,'0')}${String(n).padStart(2,'0')}_${name}`};TEACH=null;A=null;Q=null;
+  updateWho();toast(`${sLabel(CUR)} 입장!`);record('입장','실험실 입장','','');
 }
+function askStudent(then){HOME_TAB='stu';go('home');toast('먼저 학년·반·번호·이름을 입력하고 입장하세요')}
 function updateWho(){
   const w=$('#who');if(!w)return;const s=getStudent();const ob=store.get('outbox',[]).length;
-  w.innerHTML=s?`<span class="row" style="gap:6px"><span class="pill acc">${esc(sLabel(s))}</span>${SHEET_URL&&ob?`<span class="pill warn" title="전송 대기">대기 ${ob}</span>`:''}<button class="btn sm" id="whochg">변경</button></span>`:`<button class="btn sm pri" id="whochg">이름 등록</button>`;
-  $('#whochg').onclick=()=>askStudent(()=>render());
+  if(s)w.innerHTML=`<span class="row" style="gap:6px"><span class="pill acc">${esc(sLabel(s))}</span>${SHEET_URL&&ob?`<span class="pill warn" title="전송 대기">대기 ${ob}</span>`:''}<button class="btn sm" id="whoout">나가기</button></span>`;
+  else if(TEACH)w.innerHTML=`<span class="row" style="gap:6px"><span class="pill" style="background:var(--ink);color:var(--bg);border:0">교사 모드</span><button class="btn sm" id="whoout">나가기</button></span>`;
+  else w.innerHTML='';
+  const o=$('#whoout');if(o)o.onclick=()=>{CUR=null;TEACH=null;TD.data=null;A=null;Q=null;HOME_TAB='stu';go('home');updateWho()};
 }
 function record(kind,item,score,detail,report){
   const s=getStudent();if(!s)return;
@@ -1653,6 +1708,7 @@ function record(kind,item,score,detail,report){
   if(report)r.report=report;
   if(kind!=='입장'){const mine=store.get('myrecords',[]);mine.push({...r,report:undefined});store.set('myrecords',mine.slice(-300))}
   if(SHEET_URL){const ob=store.get('outbox',[]);ob.push(r);store.set('outbox',ob);flushOutbox()}
+  else{const all=store.get('all',[]);all.push({...r,report:undefined,time:r.clientTime});store.set('all',all.slice(-5000))}
 }
 let flushing=false;
 async function flushOutbox(){
@@ -1665,75 +1721,137 @@ async function flushOutbox(){
   flushing=false;updateWho();
 }
 window.addEventListener('online',flushOutbox);
+function myScoreHTML(){
+  const s=getStudent();if(!s)return '';const S=scoreOf(store.get('myrecords',[]));
+  const cell=(n,v,max,c)=>`<div class="kpi" style="--c:${c}"><span class="l">${n}</span><span class="v mono">${v}<small> / ${max}</small></span><div class="meter"><i style="width:${v/max*100}%;background:${c}"></i></div></div>`;
+  return `<section class="card" style="margin-top:22px"><div class="row" style="justify-content:space-between"><h3>${esc(sLabel(s))}의 수행평가 (예상)</h3><span class="pill acc">총 ${S.total} / 100</span></div>
+   <div class="kpis" style="margin-top:12px">${cell('① 기초 이론',S.t,20,'#2F9E6A')}${cell('② 기초 실습',S.p,20,'#2A7584')}${cell('③ 심화 실습',S.a,40,'#9C1F74')}${cell('④ 결과 보고서',S.r,20,'#C8641E')}</div>
+   <p class="small muted" style="margin-top:8px">기초 이론은 초보·중급·고급 각 난이도의 최고 정답률 평균, 기초 실습은 완료한 미션 수(7개), 심화 실습·결과 보고서는 가장 좋은 제출물 기준이에요. 최종 점수는 선생님이 확인해 확정합니다.</p></section>`;
+}
 function myRecordsHTML(){
-  const s=getStudent();if(!s)return `<section class="card" style="margin-top:22px"><h3>실험실 출입 명부</h3><p class="muted" style="margin-top:6px">입장하려면 먼저 학년·반·번호·이름을 등록하세요.</p><button class="btn pri" id="chgme" style="margin-top:10px">이름 등록</button></section>`;
+  const s=getStudent();if(!s)return '';
   const mine=store.get('myrecords',[]).slice().reverse().slice(0,8);const reps=store.get('reports',[]);
-  return `<section class="card" style="margin-top:22px"><div class="row" style="justify-content:space-between"><h3>${esc(sLabel(s))}의 활동 기록</h3><button class="btn sm" id="chgme">다른 학생으로 변경</button></div>
+  return `<section class="card" style="margin-top:14px"><h3>활동 기록</h3>
    ${mine.length?`<div class="tw" style="margin-top:10px"><table class="table"><tr><th>시간</th><th>구분</th><th>항목</th><th>점수</th></tr>${mine.map(r=>`<tr><td class="mono small">${new Date(r.clientTime).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.kind)}</td><td>${esc(r.item)}</td><td class="mono">${r.score}</td></tr>`).join('')}</table></div>`:'<p class="muted" style="margin-top:6px">아직 기록이 없어요. 기초 이론 게임부터 시작해 보세요.</p>'}
    ${reps.length?`<div class="row" style="margin-top:10px;gap:6px"><span class="small muted">제출한 보고서:</span>${reps.map((r,i)=>`<button class="btn sm" data-rep="${i}">${esc(r.title.split('·')[0].trim())} ${r.score}점</button>`).join('')}</div>`:''}
-   <p class="small muted" style="margin-top:8px">${SHEET_URL?(store.get('outbox',[]).length?`선생님께 전송 대기 중 ${store.get('outbox',[]).length}건 (인터넷 연결 시 자동 전송)`:'모든 기록이 선생님 스프레드시트(acid–base titration)로 전송되었어요.'):'이 페이지는 선생님 스프레드시트와 아직 연결되지 않아 기록이 이 브라우저에만 저장됩니다.'}</p></section>`;
+   <p class="small muted" style="margin-top:8px">${SHEET_URL?(store.get('outbox',[]).length?`선생님께 전송 대기 중 ${store.get('outbox',[]).length}건 (인터넷 연결 시 자동 전송)`:'모든 기록이 선생님께 전송되었어요.'):'미리보기 모드: 기록이 이 브라우저에만 저장됩니다.'}</p></section>`;
 }
 
-/* 교사용 결과 */
-let TD={key:'',rows:null,f:{g:'',c:'',q:''},show:60};
+/* ===== 교사 데이터 (구글 시트 ↔ 미리보기) ===== */
+let TEACH=null;
+const TD={data:null,f:{g:'',c:'',q:''},sort:'no'};
+async function tcall(params){
+  if(SHEET_URL){const q=new URLSearchParams({...params,t:Date.now()});const res=await fetch(`${SHEET_URL}?${q}`);return await res.json()}
+  const pw=store.get('tpw','0405');if(params.key!==pw)return {ok:false,error:'비밀번호가 맞지 않아요'};
+  const all=store.get('all',[]),adj=store.get('adj',{});
+  if(params.action==='data')return {ok:true,rows:all,adj,sheetUrl:''};
+  if(params.action==='reset'){if(params.target==='all'){store.set('all',[]);store.set('adj',{})}else{store.set('all',all.filter(r=>skeyOf(r)!==params.target));delete adj[params.target];store.set('adj',adj)}return {ok:true}}
+  if(params.action==='setpw'){store.set('tpw',params.newpw);return {ok:true}}
+  if(params.action==='adjust'){if(params.score==='')delete adj[params.skey];else adj[params.skey]=+params.score;store.set('adj',adj);return {ok:true}}
+  return {ok:false,error:'알 수 없는 요청'};
+}
+async function teacherLogin(pw,msgEl){
+  msgEl.textContent='확인 중…';
+  try{const j=await tcall({action:'data',key:pw});if(!j.ok){msgEl.textContent=j.error||'비밀번호가 맞지 않아요';return}
+    TEACH={pw};CUR=null;A=null;Q=null;TD.data=j;go('teacher');updateWho()}
+  catch(e){msgEl.textContent='결과를 불러오지 못했어요. SHEET_URL과 Apps Script 배포(액세스: 모든 사용자)를 확인하세요.'}
+}
+async function reloadTeacher(){try{const j=await tcall({action:'data',key:TEACH.pw});if(!j.ok){toast(j.error||'불러오기 실패');return}TD.data=j;drawTeacher()}catch(e){toast('불러오지 못했어요. 인터넷 연결을 확인하세요.')}}
+function buildRoster(){
+  const rows=(TD.data.rows||[]).filter(r=>r.kind);const adj=TD.data.adj||{};
+  const by={};rows.forEach(r=>{const k=skeyOf(r);(by[k]=by[k]||{k,grade:r.grade,cls:r.cls,no:r.no,name:r.name,list:[]}).list.push(r)});
+  return Object.values(by).map(s=>{const S=scoreOf(s.list,adj[s.k]);const last=s.list.map(x=>new Date(x.time||x.clientTime)).sort((a,b)=>b-a)[0];return {...s,S,last}});
+}
 function renderTeacher(){
-  if(!SHEET_URL){
-    app.innerHTML=`<p class="eyebrow">교사용</p><h2 style="margin-top:6px">학생 결과 보기</h2>
-    <div class="card" style="margin-top:16px"><h3>스프레드시트가 아직 연결되지 않았어요</h3>
-    <p style="margin-top:8px">학생 결과는 Google 스프레드시트 <b>「acid–base titration」</b>에 쌓입니다. Apps Script를 한 번 설치하고, 웹 앱 URL을 <code>index.html</code> 맨 위 <code>SHEET_URL</code>에 붙여 넣으세요. 자세한 순서는 README에 있습니다.</p>
-    <ol style="margin:10px 0 0;padding-left:20px"><li>Google 드라이브에서 「acid–base titration」 스프레드시트 열기 → 확장 프로그램 → Apps Script</li><li><code>apps-script.gs</code> 내용 붙여 넣기, 교사 비밀번호(TEACHER_KEY) 바꾸기</li><li>배포 → 새 배포 → 웹 앱 (실행: 나, 액세스: 모든 사용자)</li><li>웹 앱 URL을 <code>SHEET_URL</code>에 넣고 GitHub에 다시 올리기</li></ol></div>`;return}
-  if(!TD.rows){
-    app.innerHTML=`<p class="eyebrow">교사용</p><h2 style="margin-top:6px">학생 결과 보기</h2>
-    <form class="card" id="tkf" style="margin-top:16px;max-width:460px"><label class="stack" style="gap:4px"><b>교사 비밀번호</b><input id="tk" type="password" autocomplete="current-password" value="${esc(TD.key)}"></label>
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn pri" type="submit">결과 불러오기</button></div><div id="tmsg" style="margin-top:8px"></div></form>`;
-    $('#tkf').addEventListener('submit',e=>{e.preventDefault();TD.key=$('#tk').value;loadTeacher()});return}
+  if(!TEACH){HOME_TAB='tea';go('home');return}
+  if(!TD.data){app.innerHTML='<div class="card">불러오는 중…</div>';reloadTeacher();return}
   drawTeacher();
 }
-async function loadTeacher(){
-  const m=$('#tmsg');if(m)m.innerHTML='<div class="note">불러오는 중…</div>';
-  try{const res=await fetch(`${SHEET_URL}?key=${encodeURIComponent(TD.key)}&t=${Date.now()}`);const j=await res.json();
-    if(!j.ok){if(m)m.innerHTML=`<div class="note bad">${esc(j.error||'비밀번호를 확인하세요')}</div>`;TD.rows=null;return}
-    const seen=new Set();TD.rows=j.rows.filter(r=>{if(!r.id)return true;if(seen.has(r.id))return false;seen.add(r.id);return true});renderTeacher();
-  }catch(e){if(m)m.innerHTML=`<div class="note bad">불러오지 못했어요. 웹 앱 URL과 배포 설정(액세스: 모든 사용자)을 확인하세요.</div>`}
-}
 function drawTeacher(){
-  const f=TD.f;const all=TD.rows;
-  const rows=all.filter(r=>(!f.g||String(r.grade)===f.g)&&(!f.c||String(r.cls)===f.c)&&(!f.q||String(r.name).includes(f.q)));
-  const grades=[...new Set(all.map(r=>String(r.grade)))].sort(),classes=[...new Set(all.map(r=>String(r.cls)))].sort((a,b)=>a-b);
-  const by={};rows.forEach(r=>{const k=`${r.grade}-${r.cls}-${r.no}-${r.name}`;(by[k]=by[k]||{r,list:[]}).list.push(r)});
-  const sum=Object.values(by).map(({r,list})=>{
-    const best=lv=>{const s=list.filter(x=>x.kind==='기초 이론'&&String(x.item).startsWith(lv)).map(x=>+x.score);return s.length?Math.max(...s):null};
-    const prac=new Set(list.filter(x=>x.kind==='기초 실습').map(x=>x.item)).size;
-    const adv=st=>{const s=list.filter(x=>x.kind==='심화 실습'&&String(x.item).startsWith(st)).map(x=>+x.score);return s.length?Math.max(...s):null};
-    const nrep=list.filter(x=>x.kind==='심화 실습').length;
-    const last=list.map(x=>new Date(x.time||x.clientTime)).sort((a,b)=>b-a)[0];
-    return {grade:r.grade,cls:r.cls,no:r.no,name:r.name,t1:best('초보'),t2:best('중급'),t3:best('고급'),prac,a1:adv('1단계'),a2:adv('2단계'),nrep,last};
-  }).sort((a,b)=>a.grade-b.grade||a.cls-b.cls||a.no-b.no);
-  const cell=v=>v==null?'<span class="muted">—</span>':v;
-  const exCell=v=>v==null?'<span class="muted">—</span>':`<span class="pill ${v>=70?'ok':v>=50?'warn':'bad'}">${v}</span>`;
-  const detail=rows.filter(r=>r.kind!=='입장').sort((a,b)=>new Date(b.time||b.clientTime)-new Date(a.time||a.clientTime));
-  const dt=d=>new Date(d).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
-  app.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-end"><div><p class="eyebrow">교사용 · acid–base titration</p><h2 style="margin-top:6px">학생 결과</h2></div>
-   <div class="row"><span class="pill">학생 ${sum.length}명 · 기록 ${detail.length}건</span><button class="btn sm" id="trf">새로고침</button><button class="btn sm" id="tout">잠그기</button></div></div>
+  const f=TD.f;const all=buildRoster();
+  const grades=[...new Set(all.map(s=>String(s.grade)))].sort(),classes=[...new Set(all.map(s=>String(s.cls)))].sort((a,b)=>a-b);
+  let list=all.filter(s=>(!f.g||String(s.grade)===f.g)&&(!f.c||String(s.cls)===f.c)&&(!f.q||String(s.name).includes(f.q)));
+  const srt={no:(a,b)=>a.grade-b.grade||a.cls-b.cls||a.no-b.no,tot:(a,b)=>b.S.total-a.S.total,upd:(a,b)=>(b.last||0)-(a.last||0)}[TD.sort];list.sort(srt);
+  const avg=k=>list.length?r1(list.reduce((a,s)=>a+s.S[k],0)/list.length):0;
+  const ST=[['t','① 기초 이론',20,'#2F9E6A'],['p','② 기초 실습',20,'#2A7584'],['a','③ 심화 실습',40,'#9C1F74'],['r','④ 결과 보고서',20,'#C8641E']];
+  const dt=d=>d?new Date(d).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+  app.innerHTML=`<div class="row" style="justify-content:space-between;align-items:flex-end"><div><p class="eyebrow">교사용 · acid–base titration</p><h2 style="margin-top:6px">수행평가 현황판</h2></div>
+   <div class="row" style="gap:6px"><button class="btn sm" id="trf">새로고침</button><button class="btn sm" id="tcsv">CSV 내려받기</button><button class="btn sm" id="tpw">비밀번호 변경</button>${TD.data.sheetUrl?`<a class="btn sm" href="${esc(TD.data.sheetUrl)}" target="_blank" rel="noopener">구글 시트 열기</a>`:''}<button class="btn sm" id="treset" style="border-color:var(--bad);color:var(--bad)">전체 초기화</button></div></div>
+   ${SHEET_URL?'':'<div class="note warn small" style="margin-top:10px">미리보기 모드: 이 브라우저에서 입장한 학생 기록만 보입니다. 구글 시트(SHEET_URL)를 연결하면 모든 학생의 결과가 모입니다.</div>'}
    <div class="panel row" style="margin-top:14px">
     <label class="row small" style="gap:6px">학년 <select id="fg"><option value="">전체</option>${grades.map(g=>`<option ${f.g===g?'selected':''}>${g}</option>`).join('')}</select></label>
     <label class="row small" style="gap:6px">반 <select id="fc"><option value="">전체</option>${classes.map(c=>`<option ${f.c===c?'selected':''}>${c}</option>`).join('')}</select></label>
     <label class="row small" style="gap:6px;flex:1;min-width:180px">이름 <input id="fq" value="${esc(f.q)}" placeholder="이름으로 찾기" style="flex:1"></label>
    </div>
-   <div class="card" style="margin-top:14px"><h3>학생별 요약</h3><p class="small muted" style="margin-top:4px">기초 이론은 난이도별 최고 점수, 기초 실습은 완료한 미션 수(7개 중), 심화는 단계별 보고서 최고점(70점 이상 초록)입니다.</p>
-    <div class="tw" style="margin-top:10px"><table class="table"><tr><th>학년</th><th>반</th><th>번호</th><th>이름</th><th>이론 초보</th><th>이론 중급</th><th>이론 고급</th><th>실습 완료</th><th>심화 1단계</th><th>심화 2단계</th><th>보고서 수</th><th>마지막 활동</th></tr>
-    ${sum.map(s=>`<tr><td>${s.grade}</td><td>${s.cls}</td><td>${s.no}</td><td style="font-weight:600">${esc(s.name)}</td><td class="mono">${cell(s.t1)}</td><td class="mono">${cell(s.t2)}</td><td class="mono">${cell(s.t3)}</td><td class="mono">${s.prac}/7</td><td>${exCell(s.a1)}</td><td>${exCell(s.a2)}</td><td class="mono">${s.nrep}</td><td class="mono small">${s.last?dt(s.last):''}</td></tr>`).join('')||'<tr><td colspan="12" class="muted">조건에 맞는 기록이 없어요</td></tr>'}</table></div></div>
-   <div class="card" style="margin-top:14px"><h3>전체 기록 (최신순)</h3><p class="small muted" style="margin-top:4px">심화 실습 행을 누르면 보고서 요약(적정 부피·결과·고찰)을 볼 수 있어요.</p>
-    <div class="tw" style="margin-top:10px"><table class="table"><tr><th>시간</th><th>학번</th><th>이름</th><th>구분</th><th>항목</th><th>점수</th><th style="text-align:left">상세</th></tr>
-    ${detail.slice(0,TD.show).map((r,i)=>`<tr ${r.kind==='심화 실습'?`data-row="${i}" style="cursor:pointer"`:''}><td class="mono small">${dt(r.time||r.clientTime)}</td><td class="mono">${r.grade}-${r.cls}-${r.no}</td><td>${esc(r.name)}</td><td>${esc(r.kind)}</td><td>${esc(r.item)}</td><td class="mono">${r.score}</td><td class="small" style="text-align:left;max-width:420px">${esc(String(r.detail).slice(0,140))}${String(r.detail).length>140?'…':''}</td></tr>`).join('')}</table></div>
-    ${detail.length>TD.show?`<div class="row" style="justify-content:center;margin-top:10px"><button class="btn sm" id="tmore">더 보기 (${detail.length-TD.show}건 남음)</button></div>`:''}
-    <p class="small muted" style="margin-top:8px">원본 데이터는 Google 스프레드시트 「acid–base titration」의 「결과」 시트에, 보고서 세부 값은 「보고서」 시트에 쌓입니다.</p></div>`;
+   <div class="kpis" style="margin-top:14px">
+    <div class="kpi"><span class="l">학생 수</span><span class="v mono">${list.length}<small>명</small></span></div>
+    <div class="kpi"><span class="l">평균 총점</span><span class="v mono">${avg('total')}<small> / 100</small></span></div>
+    <div class="kpi"><span class="l">보고서 제출</span><span class="v mono">${list.filter(s=>s.S.best).length}<small>명</small></span></div>
+    <div class="kpi"><span class="l">기초 실습 7개 완료</span><span class="v mono">${list.filter(s=>s.S.done.size>=7).length}<small>명</small></span></div>
+   </div>
+   <div class="kpis" style="margin-top:10px">${ST.map(([k,n,m,c])=>`<div class="kpi" style="border-top:4px solid ${c}"><span class="l">${n} 평균</span><span class="v mono">${avg(k)}<small> / ${m}</small></span><div class="meter"><i style="width:${avg(k)/m*100}%;background:${c}"></i></div></div>`).join('')}</div>
+   <div class="card" style="margin-top:14px;padding:0;overflow:hidden"><div class="tw"><table class="table roster"><tr>
+     <th><button class="linkbtn" data-sort="no">학년-반-번호 ↕</button></th><th>이름</th><th>기초 이론<br><span class="mono small">/20</span></th><th>기초 실습<br><span class="mono small">/20</span></th><th>심화 실습<br><span class="mono small">/40</span></th><th>결과 보고서<br><span class="mono small">/20</span></th><th><button class="linkbtn" data-sort="tot">총점 ↕</button><br><span class="mono small">/100</span></th><th><button class="linkbtn" data-sort="upd">최근 활동 ↕</button></th><th>관리</th></tr>
+    ${list.map((s,i)=>`<tr><td class="mono">${s.grade}-${s.cls}-${s.no}</td><td style="font-weight:600">${esc(s.name)}</td><td class="mono">${s.S.t}</td><td class="mono">${s.S.p}</td><td class="mono">${s.S.best?s.S.a:'<span class="muted">—</span>'}</td><td class="mono">${s.S.best||s.S.adjusted?s.S.r:'<span class="muted">—</span>'}${s.S.adjusted?' <span class="pill warn" title="교사 조정">조정</span>':''}</td><td class="mono" style="font-weight:700">${s.S.total}</td><td class="mono small">${dt(s.last)}</td>
+     <td style="white-space:nowrap"><button class="btn sm" data-det="${i}">상세</button> <button class="btn sm" data-rs="${i}" style="color:var(--bad)">초기화</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">아직 기록이 없어요</td></tr>'}</table></div></div>
+   <p class="small muted" style="margin-top:8px">점수 기준 — 기초 이론: 초보·중급·고급 최고 정답률의 평균 × 20 · 기초 실습: 완료 미션 ÷ 7 × 20 · 심화 실습(40)·결과 보고서(20): 가장 높은 제출물 기준 (보고서는 상세 화면에서 교사가 조정 가능)</p>`;
   $('#fg').onchange=e=>{f.g=e.target.value;drawTeacher()};$('#fc').onchange=e=>{f.c=e.target.value;drawTeacher()};
   $('#fq').oninput=e=>{f.q=e.target.value.trim();clearTimeout(TD.qt);TD.qt=setTimeout(()=>{drawTeacher();const q=$('#fq');q.focus();q.setSelectionRange(q.value.length,q.value.length)},300)};
-  $('#trf').onclick=async()=>{toast('새로 불러오는 중…');await loadTeacher()};
-  $('#tout').onclick=()=>{TD.rows=null;TD.key='';renderTeacher()};
-  const mo=$('#tmore');if(mo)mo.onclick=()=>{TD.show+=100;drawTeacher()};
-  $$('[data-row]').forEach(tr=>tr.onclick=()=>{const r=detail[+tr.dataset.row];modal(`<h3>${esc(r.name)} · ${esc(r.item)}</h3><p class="small muted" style="margin-top:4px">${r.grade}학년 ${r.cls}반 ${r.no}번 · ${dt(r.time||r.clientTime)} · ${r.score}점</p><div class="panel" style="margin-top:10px;white-space:pre-wrap">${esc(String(r.detail).replace(/ · /g,'\n'))}</div><div class="row" style="justify-content:flex-end;margin-top:12px"><button class="btn" data-close>닫기</button></div>`)});
+  $$('[data-sort]').forEach(b=>b.onclick=()=>{TD.sort=b.dataset.sort;drawTeacher()});
+  $('#trf').onclick=()=>{toast('새로 불러오는 중…');reloadTeacher()};
+  $('#tcsv').onclick=()=>downloadCSV(list);
+  $('#tpw').onclick=changePw;
+  $('#treset').onclick=()=>confirmReset('all','전체 학생');
+  $$('[data-det]').forEach(b=>b.onclick=()=>studentDetail(list[+b.dataset.det]));
+  $$('[data-rs]').forEach(b=>b.onclick=()=>{const s=list[+b.dataset.rs];confirmReset(s.k,`${s.grade}학년 ${s.cls}반 ${s.no}번 ${s.name}`)});
+}
+function confirmReset(target,label){
+  const all=target==='all';
+  modal(`<h3 style="color:var(--bad)">${all?'전체 초기화':'학생 초기화'}</h3>
+   <p style="margin-top:8px"><b>${esc(label)}</b>의 모든 기록(기초 이론 · 기초 실습 · 심화 실습 · 보고서 · 교사 조정 점수)을 ${SHEET_URL?'구글 시트에서 ':''}삭제합니다. 되돌릴 수 없어요.</p>
+   ${all?'<label class="stack" style="gap:4px;margin-top:10px"><span class="small">확인을 위해 <b>초기화</b> 라고 입력하세요</span><input id="rsw" autocomplete="off"></label>':''}
+   <p class="small muted" style="margin-top:8px">※ 학생 기기에 남은 개인 진행 표시(완료 체크 등)는 학생이 다시 활동하면 새로 기록됩니다.</p>
+   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-close>취소</button><button class="btn" id="rsok" style="background:var(--bad);border-color:var(--bad);color:#fff">초기화</button></div>`,(m,close)=>{
+    $('#rsok',m).onclick=async()=>{if(all&&$('#rsw',m).value.trim()!=='초기화'){toast('"초기화"를 정확히 입력하세요');return}
+      try{const j=await tcall({action:'reset',key:TEACH.pw,target});if(!j.ok){toast(j.error||'실패');return}close();toast(`${label} 기록을 초기화했어요`);reloadTeacher()}catch(e){toast('요청에 실패했어요')}}});
+}
+function changePw(){
+  modal(`<h3>교사 비밀번호 변경</h3>
+   <form id="pwf" class="stack" style="margin-top:12px;gap:10px"><label class="stack" style="gap:4px"><span class="small">새 비밀번호 (4~20자)</span><input id="np1" type="password" autocomplete="new-password"></label>
+   <label class="stack" style="gap:4px"><span class="small">새 비밀번호 확인</span><input id="np2" type="password" autocomplete="new-password"></label>
+   <p class="small muted">${SHEET_URL?'구글 시트(Apps Script)에 저장되어 모든 기기에서 새 비밀번호로 들어옵니다.':'미리보기 모드에서는 이 브라우저에만 저장됩니다.'}</p>
+   <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-close>취소</button><button class="btn pri" type="submit">변경</button></div></form>`,(m,close)=>{
+    $('#pwf',m).addEventListener('submit',async e=>{e.preventDefault();const a=$('#np1',m).value,b=$('#np2',m).value;
+      if(a.length<4||a.length>20){toast('4~20자로 입력하세요');return}if(a!==b){toast('두 비밀번호가 달라요');return}
+      try{const j=await tcall({action:'setpw',key:TEACH.pw,newpw:a});if(!j.ok){toast(j.error||'실패');return}TEACH.pw=a;close();toast('비밀번호를 바꿨어요')}catch(err){toast('요청에 실패했어요')}})});
+}
+function downloadCSV(list){
+  const head=['학년','반','번호','이름','기초 이론(20)','기초 실습(20)','심화 실습(40)','결과 보고서(20)','총점(100)','보고서 조정'];
+  const rows=list.map(s=>[s.grade,s.cls,s.no,s.name,s.S.t,s.S.p,s.S.a,s.S.r,s.S.total,s.S.adjusted?'교사 조정':'']);
+  const csv='﻿'+[head,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`중화적정_수행평가_${new Date().toLocaleDateString('ko-KR').replace(/\. /g,'-').replace('.','')}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function studentDetail(s){
+  const S=s.S;const dt=d=>new Date(d).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'});
+  const miss=PTABS.map(p=>p[1]).filter(n=>!S.done.has(n));
+  const subs=S.subs.slice().sort((a,b)=>new Date(b.time||b.clientTime)-new Date(a.time||a.clientTime));
+  const log=s.list.filter(x=>x.kind!=='심화 실습'&&x.kind!=='입장').sort((a,b)=>new Date(b.time||b.clientTime)-new Date(a.time||a.clientTime)).slice(0,40);
+  modal(`<div class="row" style="justify-content:space-between"><h3>${esc(s.grade)}학년 ${esc(s.cls)}반 ${esc(s.no)}번 ${esc(s.name)}</h3><span class="pill acc">총점 ${S.total} / 100</span></div>
+   <div class="kpis" style="margin-top:12px">
+    <div class="kpi"><span class="l">① 기초 이론</span><span class="v mono">${S.t}<small>/20</small></span><span class="small muted">초보 ${Math.round(S.th[0]*100)}% · 중급 ${Math.round(S.th[1]*100)}% · 고급 ${Math.round(S.th[2]*100)}%</span></div>
+    <div class="kpi"><span class="l">② 기초 실습</span><span class="v mono">${S.p}<small>/20</small></span><span class="small muted">${S.done.size}/7 완료${miss.length?' · 남은: '+miss.join(', '):''}</span></div>
+    <div class="kpi"><span class="l">③ 심화 실습</span><span class="v mono">${S.a}<small>/40</small></span><span class="small muted">제출 ${S.subs.length}회 · 최고 기준</span></div>
+    <div class="kpi"><span class="l">④ 결과 보고서</span><span class="v mono">${S.r}<small>/20</small></span><span class="small muted">자동 ${S.auto}${S.adjusted?' → 교사 조정':''}</span></div></div>
+   <div class="panel row" style="margin-top:12px;gap:8px"><b class="small">결과 보고서 점수 조정</b><input id="adj" type="number" min="0" max="20" step="0.5" value="${S.adjusted?S.r:''}" placeholder="${S.auto}" style="width:90px"><button class="btn sm pri" id="adjs">저장</button>${S.adjusted?'<button class="btn sm" id="adjc">자동 점수로 되돌리기</button>':''}</div>
+   <h3 style="margin-top:14px;font-size:17px">심화 실습 제출 (${S.subs.length})</h3>
+   ${subs.length?subs.map(x=>{const d=String(x.detail);const gi=d.indexOf('고찰: ');return `<div class="panel" style="margin-top:8px"><div class="row" style="justify-content:space-between"><b>${esc(x.item)}</b><span class="mono small">${dt(x.time||x.clientTime)} · ${esc(x.score)}점</span></div><p class="small" style="margin-top:4px">${esc(gi>0?d.slice(0,gi):d)}</p>${gi>0?`<p class="small" style="margin-top:6px;white-space:pre-wrap;background:var(--surface);padding:8px 10px;border-radius:8px"><b>고찰</b> ${esc(d.slice(gi+4))}</p>`:''}</div>`}).join(''):'<p class="muted small" style="margin-top:6px">아직 제출한 보고서가 없어요.</p>'}
+   <h3 style="margin-top:14px;font-size:17px">활동 기록</h3>
+   <div class="tw" style="margin-top:6px"><table class="table"><tr><th>시간</th><th>구분</th><th>항목</th><th>점수</th><th>상세</th></tr>${log.map(x=>`<tr><td class="mono small">${dt(x.time||x.clientTime)}</td><td>${esc(x.kind)}</td><td>${esc(x.item)}</td><td class="mono">${esc(x.score)}</td><td class="small" style="text-align:left">${esc(String(x.detail).slice(0,80))}</td></tr>`).join('')||'<tr><td colspan="5" class="muted">없음</td></tr>'}</table></div>
+   <div class="row" style="justify-content:flex-end;margin-top:14px"><button class="btn" data-close>닫기</button></div>`,(m,close)=>{
+    const save=async v=>{try{const j=await tcall({action:'adjust',key:TEACH.pw,skey:s.k,score:v});if(!j.ok){toast(j.error||'실패');return}close();toast(v===''?'자동 점수로 되돌렸어요':`보고서 점수를 ${v}점으로 저장했어요`);reloadTeacher()}catch(e){toast('요청에 실패했어요')}};
+    $('#adjs',m).onclick=()=>{const v=$('#adj',m).value.trim();if(v===''){toast('점수를 입력하세요');return}const n=+v;if(isNaN(n)||n<0||n>20){toast('0~20 사이로 입력하세요');return}save(String(n))};
+    const c=$('#adjc',m);if(c)c.onclick=()=>save('');
+  },true);
 }
 render();flushOutbox();
 </script>
