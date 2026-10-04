@@ -333,6 +333,11 @@ textarea:focus-visible{outline:3px solid var(--glass);outline-offset:2px}
 .gatecard.stu .gname{color:var(--accent)}.gatecard.tch .gname{color:var(--glass)}
 .gatecard .gdesc{color:var(--muted);font-size:14.5px}
 .gatecard .gcta{margin-top:auto;font-weight:700}
+.oi.drag{cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;margin-bottom:8px}
+.oi.drag .n{width:26px;height:26px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700}
+.oi.drag .grip{font-size:18px;color:var(--muted);padding:0 4px}
+.oi.dragging{cursor:grabbing;border-color:var(--accent);box-shadow:0 8px 20px rgba(0,0,0,.15);background:var(--accent-soft);position:relative;z-index:2}
+.pnav{display:flex;justify-content:space-between;gap:10px;margin-top:22px;padding-top:14px;border-top:1px solid var(--line)}
 #printzone{display:none}
 @media print{
   body.printing>*:not(#printzone){display:none!important}
@@ -398,13 +403,20 @@ let cleanup=[];let HOME_TAB='stu';
 function onLeave(fn){cleanup.push(fn)}
 
 
-/* 번호로 순서 정하기 */
+/* 끌어서 순서 정하기 (마우스 · 터치) */
 function numOrder(host,items){
-  host.innerHTML=`<p class="small muted" style="margin-bottom:6px">각 단계 왼쪽 칸에 순서 번호(1~${items.length})를 고르세요.</p>`+items.map((t,i)=>`<div class="oi"><select data-no="${i}" aria-label="순서 번호" style="width:72px;padding:6px"><option value="">번호</option>${items.map((_,k)=>`<option value="${k+1}">${k+1}</option>`).join('')}</select><span class="t">${esc(t)}</span></div>`).join('');
-  const sels=$$('[data-no]',host);
-  const mark=()=>{const v=sels.map(s=>s.value);sels.forEach(s=>{s.style.borderColor=s.value&&v.filter(x=>x===s.value).length>1?'var(--bad)':''})};
-  sels.forEach(s=>s.onchange=mark);
-  return ()=>{const nums=sels.map(s=>+s.value||0);if(nums.some(n=>!n))return {err:'모든 단계에 번호를 넣으세요'};if(new Set(nums).size!==nums.length)return {err:'같은 번호가 두 번 쓰였어요'};const ord=[];nums.forEach((n,i)=>ord[n-1]=items[i]);return {ord}};
+  host.innerHTML=`<p class="small muted" style="margin-bottom:6px">☰ 카드를 마우스로 끌거나 손가락으로 눌러 끌어서 순서대로 놓으세요.</p><div class="dlist">${items.map((t,i)=>`<div class="oi drag" data-k="${i}"><span class="n"></span><span class="t">${esc(t)}</span><span class="grip" aria-hidden="true">☰</span></div>`).join('')}</div>`;
+  const list=$('.dlist',host);
+  const renum=()=>$$('.oi',list).forEach((e,i)=>{$('.n',e).textContent=i+1});renum();
+  $$('.oi',list).forEach(it=>it.addEventListener('pointerdown',e=>{
+    if(e.button>0)return;e.preventDefault();it.classList.add('dragging');const y0=e.clientY;
+    const move=ev=>{const y=ev.clientY;const sibs=$$('.oi',list).filter(x=>x!==it);
+      let before=null;for(const s of sibs){const r=s.getBoundingClientRect();if(y<r.top+r.height/2){before=s;break}}
+      if(before!==it.nextElementSibling||(!before&&it!==list.lastElementChild)){list.insertBefore(it,before);renum()}};
+    const up=()=>{it.classList.remove('dragging');window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up)};
+    window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);void y0;
+  }));
+  return ()=>({ord:$$('.oi',list).map(e=>items[+e.dataset.k])});
 }
 /* 한글 분해 */
 const CHO=['ㄱ','ㄲ','ㄴ','ㄷ','ㄸ','ㄹ','ㅁ','ㅂ','ㅃ','ㅅ','ㅆ','ㅇ','ㅈ','ㅉ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
@@ -1031,8 +1043,12 @@ function renderPractice(){
   app.innerHTML=`<p class="eyebrow">STEP 2 · 기초 실습</p><h2 style="margin-top:6px">가상 실험대</h2>
   <p class="muted" style="margin-top:8px;max-width:68ch">중화 적정에 필요한 기구, 안전 수칙, 용액 만들기, 지시약을 하나씩 익혀요. 미션 7개를 모두 완료하면 심화 실습이 훨씬 쉬워집니다.</p>
   <div class="tabs" role="tablist" style="margin-top:16px">${PTABS.map(([k,n],i)=>`<button class="tab ${PT===k?'on':''}" data-t="${k}" role="tab">${i+1}. ${n}${d[k]?' <span class="ck">✓</span>':''}</button>`).join('')}</div>
-  <div id="pbody"></div>`;
-  $$('[data-t]').forEach(b=>b.onclick=()=>{PT=b.dataset.t;cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];renderPractice()});
+  <div id="pbody"></div>
+  <div class="pnav noprint">${(()=>{const i=PTABS.findIndex(x=>x[0]===PT);const pv=PTABS[i-1],nx=PTABS[i+1];
+    return `${pv?`<button class="btn" data-pnav="${pv[0]}">← 이전: ${pv[1]}</button>`:'<span></span>'}${nx?`<button class="btn pri" data-pnav="${nx[0]}">다음 단계: ${nx[1]} →</button>`:`<button class="btn pri" data-go="adv">심화 실습으로 →</button>`}`})()}</div>`;
+  const goTab=k=>{PT=k;cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];renderPractice();window.scrollTo(0,0)};
+  $$('[data-pnav]').forEach(b=>b.onclick=()=>goTab(b.dataset.pnav));
+  $$('.tabs [data-t]').forEach(b=>b.onclick=()=>goTab(b.dataset.t));
   ({tools:pTools,burette:pBurette,pipette:pPipette,safety:pSafety,naoh:pNaoh,color:pColor,choose:pChoose})[PT]($('#pbody'));
 }
 const MD=new Set();
@@ -1041,7 +1057,7 @@ function markDone(k){const d=store.get('prac',{});const mk=(CUR&&CUR.id)+k;if(MD
   toast(nx?`미션 완료! 다음: ${nx[1]}`:'기초 실습 미션을 모두 완료했어요!');
 }
 function nextMission(k){const i=PTABS.findIndex(x=>x[0]===k);const nx=PTABS[i+1];return nx?`<button class="btn pri" id="nextm">다음 미션: ${nx[1]} →</button>`:`<button class="btn pri" data-go="adv">심화 실습으로 →</button>`}
-function bindNext(el,k){const b=$('#nextm',el);if(b)b.onclick=()=>{PT=PTABS[PTABS.findIndex(x=>x[0]===k)+1][0];render()}}
+function bindNext(el,k){const b=$('#nextm',el);if(b){b.onclick=()=>{PT=PTABS[PTABS.findIndex(x=>x[0]===k)+1][0];render()};setTimeout(()=>b.scrollIntoView({behavior:'smooth',block:'center'}),300)}}
 
 /* 1. 실험 기구 도감 */
 const TOOLS=[
@@ -1110,13 +1126,14 @@ function pBurette(el){
   const draw=()=>{$('#blens',el).innerHTML=lensSVG(S.R,{eye:S.eye});const lv=Math.abs(S.eye)<.08;$('#eyelab',el).innerHTML=lv?'<span class="pill ok">눈높이 수평 ✓</span>':`<span class="pill warn">눈이 ${S.eye>0?'아래':'위'}에 있어요 → 시차 발생</span>`};
   draw();
   $('#eye',el).oninput=e=>{S.eye=+e.target.value;draw()};
-  $('#bchk',el).onclick=()=>{const raw=$('#brd',el).value.trim();const v=num(raw);if(isNaN(v)){toast('숫자로 입력하세요');return}
+  $('#bchk',el).onclick=()=>{if(S.reads>=3)return;const raw=$('#brd',el).value.trim();const v=num(raw);if(isNaN(v)){toast('숫자로 입력하세요');return}
     if(Math.abs(S.eye)>=.08){$('#bfb',el).innerHTML=`<div class="feedback bad pop"><b>눈높이부터!</b><p>눈이 메니스커스보다 ${S.eye>0?'아래':'위'}에 있으면 실제보다 ${S.eye>0?'크게':'작게'} 읽혀요. 슬라이더를 가운데(수평)로 맞춘 뒤 읽으세요.</p></div>`;return}
     const ok=Math.abs(v-S.R)<=.051;const decOk=/\.\d$/.test(raw);
     if(ok&&decOk){S.reads++;$('#bfb',el).innerHTML=`<div class="feedback ok pop"><b>정확! (${fx(S.R,1)} mL)</b><p>메니스커스 아랫면 기준, 소수 첫째 자리까지 읽었어요.</p></div>`;$('#bcount',el).textContent=`${S.reads} / 3`;
+      if(S.reads>=3){$('#brd',el).disabled=true;$('#bchk',el).disabled=true;$('#eye',el).disabled=true;$('#bfb',el).innerHTML=`<div class="feedback ok pop"><b>눈금 읽기 3회 완료!</b><p>${S.orderOk?'뷰렛 준비 순서도 맞혔어요. 미션 완료!':'왼쪽 ① 뷰렛 준비 순서도 맞히면 미션 완료예요.'}</p></div>`;check();return}
       S.R=newR();S.eye=pk([-.7,.6,.9,-.4]);$('#eye',el).value=S.eye;$('#brd',el).value='';setTimeout(draw,900);check()}
     else $('#bfb',el).innerHTML=`<div class="feedback bad pop"><b>아쉬워요</b><p>${!decOk?'소수 첫째 자리까지(예: 12.4) 적어야 해요. ':''}${ok?'':`정답은 ${fx(S.R,1)} mL. 큰 눈금(1 mL) → 작은 눈금(0.1 mL) 순으로 세어 보세요.`}</p></div>`};
-  function check(){if(S.orderOk&&S.reads>=3){markDone('burette');$('#bnext',el).innerHTML=nextMission('burette');bindNext(el,'burette')}}
+  function check(){if(S.orderOk&&S.reads>=3&&!S.fin){S.fin=1;markDone('burette');$('#bnext',el).innerHTML=nextMission('burette');bindNext(el,'burette')}}
 }
 
 /* 3. 피펫 필러 · 부피 플라스크 */
@@ -1124,7 +1141,7 @@ function fillerSVG(o={}){
   const {flat=false,act='',level=0,where='',residual=false,labels=false}=o;
   const hl=k=>act===k?'var(--accent)':'#2b2b2b';
   const mark=.72,top=300,bot=548,ly=bot-(bot-top)*level,my=bot-(bot-top)*mark;
-  const lx=292,lr=54,zs=9,liqTopZ=my-(level-mark)*(bot-top)*zs;
+  const lx=292,lr=54,zs=5,liqTopZ=my-(level-mark)*(bot-top)*zs;
   return `<svg viewBox="0 0 380 570" width="100%" style="max-width:420px" role="img" aria-label="피펫 필러와 홀 피펫">
    <text x="190" y="16" text-anchor="middle" font-size="14" font-weight="600" fill="var(--muted)">${where==='sample'?'피펫 끝: 시료(식초) 속':where==='flask'?'피펫 끝: 삼각 플라스크 벽':'피펫 끝: 공기 중'}</text>
    <rect x="148" y="30" width="44" height="28" rx="6" fill="${hl('A')}"/><text x="170" y="50" text-anchor="middle" font-size="18" font-weight="700" fill="#fff">A</text>
@@ -1158,7 +1175,7 @@ function pPipette(el){
   const FOPTS=['누른 채 고무구를 쥐어 공기를 빼낸다','누르면 용액이 피펫으로 빨려 올라온다','누르면 용액이 흘러나온다','누르면 피펫이 필러에서 빠진다'];
   const S={fnOk:false,flat:false,level:0,where:'air',act:'',stage:0,residual:false,simOk:false,L:.55,done2:false,over:false};
   const MARK=.72;
-  const TASKS=['A를 누른 채 고무구를 쥐어 공기 빼기','피펫 끝을 식초에 담그고 S를 눌러 표선 위까지 빨아올리기','E를 살짝 눌러 메니스커스 아랫면을 표선에 맞추기','삼각 플라스크로 옮겨 E를 눌러 용액 내보내기','E 옆 구멍을 막고 작은 고무구를 눌러 끝에 남은 용액 밀어내기'];
+  const TASKS=['A를 누른 채 고무구를 쥐어 공기 빼기','피펫 끝을 식초에 담그고 S를 눌러 표선 위까지 빨아올리기','E를 짧게 여러 번 눌러 메니스커스 아랫면을 표선에 맞추기 (내려가면 S로 다시)','삼각 플라스크로 옮겨 E를 눌러 용액 내보내기','E 옆 구멍을 막고 작은 고무구를 눌러 끝에 남은 용액 밀어내기'];
   el.innerHTML=`<div class="card"><p class="eyebrow">왜 중요할까?</p><p style="margin-top:6px">시약은 <b>절대 입으로 빨아올리지 않아요.</b> 홀 피펫에는 반드시 <b>피펫 필러(안전 필러)</b>를 끼워 A · S · E 세 밸브로 조작합니다. 식초 20 mL를 삼각 플라스크에 옮기는 과정으로 연습해 봐요.</p></div>
   <div class="grid g2" style="margin-top:14px">
    <div class="card"><h3>① A · S · E 밸브의 기능</h3>
@@ -1172,7 +1189,7 @@ function pPipette(el){
      <button class="btn sm holdbtn" id="fe">E 누르기 (누르고 있기)</button>
      <button class="btn sm" id="feb">E 옆 구멍 막고 작은 고무구 누르기</button>
     </div>
-    <div class="row" style="margin-top:6px;gap:6px"><button class="btn sm glass" id="wsample">피펫 끝을 식초에 담그기</button><button class="btn sm glass" id="wflask">삼각 플라스크로 옮기기</button></div>
+    <div class="row" style="margin-top:6px;gap:6px"><button class="btn sm" id="freset">처음부터 다시</button><button class="btn sm glass" id="wsample">피펫 끝을 식초에 담그기</button><button class="btn sm glass" id="wflask">삼각 플라스크로 옮기기</button></div>
     <div id="ff" style="margin-top:8px"></div></div>
    <div class="card" style="display:flex;flex-direction:column;align-items:center"><div id="fsvg" style="width:100%;display:flex;justify-content:center"></div><p class="small muted" id="flv" style="margin-top:6px"></p></div>
   </div>
@@ -1191,17 +1208,18 @@ function pPipette(el){
   holdButton($('#fs',el),()=>{S.act='S';
     if(!S.flat){fb('고무구에 공기가 차 있어 빨아올릴 수 없어요. 먼저 A로 공기를 빼세요.',false);draw();return}
     if(S.where!=='sample'){fb('피펫 끝이 시료에 담겨 있지 않아 공기만 빨려 들어가요.',false);draw();return}
-    S.level=Math.min(.95,S.level+.03);if(S.level>=.95){S.flat=false}
+    S.level=Math.min(.95,S.level+.025);
     if(S.stage===1&&S.level>MARK+.02){S.stage=2;fb('표선 위까지 올라왔어요. E를 살짝 눌러 표선에 맞추세요.',true)}draw()},110);
   holdButton($('#fe',el),()=>{S.act='E';if(S.level<=0){draw();return}
-    if(S.stage===2){S.level=Math.max(0,S.level-.004);if(S.level<MARK-.012){fb('표선 아래로 내려갔어요! 다시 S로 빨아올려 맞추세요.',false);S.stage=1}}
+    if(S.stage===2){S.level=Math.max(0,S.level-.0025);if(S.level<MARK-.006){fb('표선 아래로 내려갔어요! S를 눌러 다시 표선 위까지 빨아올린 뒤 E로 천천히 맞추세요.',false);S.stage=1}}
     else if(S.stage===3){if(S.where!=='flask'){fb('삼각 플라스크로 옮긴 뒤에 내보내세요.',false)}else{S.level=Math.max(.02,S.level-.05);if(S.level<=.02){S.residual=true;S.level=0;S.stage=4;fb('피펫 끝에 용액이 조금 남았어요. E 옆 구멍을 막고 작은 고무구를 누르세요.',true)}}}
     else S.level=Math.max(0,S.level-.02);
     draw()},110);
-  ['pointerup','pointerleave','keyup'].forEach(ev=>{$('#fe',el).addEventListener(ev,()=>{S.act='';if(S.stage===2&&Math.abs(S.level-MARK)<=.012&&S.where==='sample'){S.stage=3;fb('표선에 딱 맞았어요! 삼각 플라스크로 옮겨 E를 눌러 내보내세요.',true)}draw()});$('#fs',el).addEventListener(ev,()=>{S.act='';draw()})});
+  ['pointerup','pointerleave','keyup'].forEach(ev=>{$('#fe',el).addEventListener(ev,()=>{S.act='';if(S.stage===2&&Math.abs(S.level-MARK)<=.006&&S.where==='sample'){S.level=MARK;S.stage=3;fb('표선에 딱 맞았어요! 삼각 플라스크로 옮겨 E를 눌러 내보내세요.',true)}draw()});$('#fs',el).addEventListener(ev,()=>{S.act='';draw()})});
   $('#feb',el).onclick=()=>{flashAct('EB');if(S.stage===4&&S.residual){S.residual=false;S.stage=5;S.simOk=true;fb('완료! 피펫 끝에 남은 용액까지 모두 옮겼어요. 식초 20.0 mL가 정확히 들어갔습니다.',true);chk()}else fb('끝에 남은 용액을 밀어낼 때 쓰는 방법이에요. 아직은 필요 없어요.',false);draw()};
   $('#wsample',el).onclick=()=>{S.where='sample';draw()};
-  $('#wflask',el).onclick=()=>{if(S.stage===2){fb('아직 표선을 맞추지 않았어요.',false);return}S.where='flask';draw()};
+  $('#freset',el).onclick=()=>{if(S.simOk)return;Object.assign(S,{flat:false,level:0,where:'air',act:'',stage:0,residual:false});$('#ff',el).innerHTML='';draw()};
+  $('#wflask',el).onclick=()=>{if(S.stage<3){fb('먼저 메니스커스 아랫면을 표선에 맞추세요.',false);return}S.where='flask';draw()};
   // 부피 플라스크
   const neckZoom=()=>{const px=1400,cy=80,y=cy-(S.L-1)*px;return `<svg viewBox="0 0 160 160" width="230" height="230"><defs><clipPath id="nz"><circle cx="80" cy="80" r="77"/></clipPath></defs><g clip-path="url(#nz)"><rect width="160" height="160" fill="var(--surface)"/><path d="M50 ${y-7} Q80 ${y+7} 110 ${y-7} V170 H50Z" fill="rgba(160,200,230,.55)"/><path d="M50 ${y-7} Q80 ${y+7} 110 ${y-7}" fill="none" stroke="${INK}" stroke-width="1.5"/><line x1="40" x2="120" y1="${cy}" y2="${cy}" stroke="var(--accent)" stroke-width="2.5"/><text x="122" y="${cy-4}" font-size="11" fill="var(--accent)">표선</text><line x1="50" x2="50" y1="0" y2="160" stroke="${INK}" stroke-width="2.4"/><line x1="110" x2="110" y1="0" y2="160" stroke="${INK}" stroke-width="2.4"/></g><circle cx="80" cy="80" r="77" fill="none" stroke="${INK}" stroke-width="4"/></svg>`};
   const drawF=()=>{$('#fl',el).innerHTML=flaskSVG({level:S.L,vol:'1 L',w:190,h:300});$('#fzoom',el).innerHTML=S.L>.9?neckZoom():'<p class="small muted" style="width:230px">표선 근처(목 부분)에 오면 확대경이 켜져요</p>'};
@@ -1247,18 +1265,18 @@ function balanceWidget(host,o){
    <svg viewBox="0 0 200 70" width="220"><rect x="10" y="40" width="180" height="26" rx="6" fill="#9aa5a1"/><rect x="50" y="30" width="100" height="6" rx="3" fill="#555"/><g id="bp"></g></svg>
    <div class="row" style="justify-content:center;gap:6px">
     <button class="btn sm" id="b_p">시약포지 올리기</button><button class="btn sm" id="b_t">영점 (TARE)</button>
-    <button class="btn sm" id="b_b">약숟가락 크게</button><button class="btn sm" id="b_s">조금 톡톡</button><button class="btn sm" id="b_r">조금 덜어 내기</button>
+    <button class="btn sm" id="b_b">약숟가락 크게</button><button class="btn sm" id="b_s">조금 톡톡</button><button class="btn sm" id="b_r">조금 덜어 내기</button><button class="btn sm" id="b_x">처음부터</button>
    </div>
    <span class="small" id="bhint">① 시약포지 → ② 영점 → ③ NaOH 덜기</span></div>
    <div class="row" style="margin-top:10px;justify-content:flex-end"><button class="btn pri" id="b_ok">칭량 완료</button></div><div id="bfb"></div>`;
   const disp=()=>(S.paper?PAPER:0)+S.naoh-S.tare;
-  const draw=()=>{if(S.naoh>0&&!S.done){S.naoh+=.0006}$('#bl',host).textContent=disp().toFixed(2)+' g';
+  const draw=()=>{if(S.naoh>0&&!S.done){S.naoh+=.0002}$('#bl',host).textContent=disp().toFixed(2)+' g';
     $('#bp',host).innerHTML=(S.paper?`<path d="M60 28 L100 18 L140 28 Z" fill="#fff" stroke="#888"/>`:'')+(S.naoh>0?`<ellipse cx="100" cy="24" rx="${6+Math.min(18,S.naoh*4)}" ry="${2+Math.min(5,S.naoh)}" fill="#f4f4f4" stroke="#aaa"/>`:'')};
   const tick=setInterval(draw,200);onLeave(()=>clearInterval(tick));draw();
   $('#b_p',host).onclick=()=>{if(S.paper)return;S.paper=true;draw()};
   $('#b_t',host).onclick=()=>{if(S.naoh>0){toast('시약을 올리기 전에 영점을 맞춰야 해요');return}S.tare=S.paper?PAPER:0;draw();toast('영점 완료: 0.00 g')};
   const add=d=>{if(!S.paper){toast('저울 접시에 바로 시약을 올리면 안 돼요. 시약포지부터!');return}if(S.done)return;S.naoh=Math.max(0,S.naoh+d);draw()};
-  $('#b_b',host).onclick=()=>add(rnd(.5,.9));$('#b_s',host).onclick=()=>add(rnd(.02,.07));$('#b_r',host).onclick=()=>add(-rnd(.05,.15));
+  $('#b_b',host).onclick=()=>add(rnd(.5,.9));$('#b_x',host).onclick=()=>{if(S.done)return;S.naoh=0;draw()};$('#b_s',host).onclick=()=>add(rnd(.04,.1));$('#b_r',host).onclick=()=>add(-rnd(.05,.12));
   $('#b_ok',host).onclick=()=>{if(S.done)return;const m=S.naoh,shown=disp();const tared=Math.abs(S.tare-(S.paper?PAPER:0))<1e-9&&S.paper;
     if(!S.paper||m<=0){toast('NaOH를 먼저 올리세요');return}
     if(!tared){$('#bfb',host).innerHTML=`<div class="feedback bad pop"><b>영점을 안 맞췄어요!</b><p>화면 ${shown.toFixed(2)} g에는 시약포지 무게(${PAPER.toFixed(2)} g)가 포함돼 있어요. 실제 NaOH는 ${m.toFixed(2)} g뿐. 시약을 덜어 내고 다시 해 보세요.</p><button class="btn sm" id="bre" style="margin-top:6px">처음부터</button></div>`;$('#bre',host).onclick=()=>balanceWidget(host,o);return}
@@ -1272,10 +1290,10 @@ function pNaoh(el){
    <div class="card"><h3>① 필요한 질량 계산</h3><p style="margin-top:6px">0.1 M NaOH 수용액 1 L를 만들려면 NaOH 몇 g이 필요할까? (NaOH = 23 + 16 + 1 = 40 g/mol)</p>
     <div class="ansrow"><input id="nm" inputmode="decimal" placeholder="숫자"><span class="pill">g</span><button class="btn pri" id="nmc">확인</button></div><div id="nmf"></div>
     <h3 style="margin-top:18px">③ 녹이고 옮기는 순서</h3><div class="orderlist" id="no"></div><div class="row" style="margin-top:10px"><button class="btn pri" id="noc">순서 확인</button></div><div id="nof"></div></div>
-   <div class="card"><h3>② 전자 저울로 칭량</h3><p class="small muted" style="margin-top:4px">목표 4.00 g (± 0.05 g). NaOH는 조해성이 있어 공기 중 수분을 흡수하니 빠르게!</p><div id="bw" style="margin-top:10px"></div></div></div>
+   <div class="card"><h3>② 전자 저울로 칭량</h3><p class="small muted" style="margin-top:4px">목표 4.00 g (3.90 ~ 4.10 g이면 성공). NaOH는 공기 중 수분을 흡수해 조금씩 무거워지니 빠르게!</p><div id="bw" style="margin-top:10px"></div></div></div>
    <div class="row" style="margin-top:14px;justify-content:flex-end" id="nnext"></div>`;
   $('#nmc',el).onclick=()=>{const v=num($('#nm',el).value);S.calc=Math.abs(v-4)<.011;$('#nmf',el).innerHTML=S.calc?`<div class="feedback ok pop"><b>정답</b><p>0.1 mol/L × 1 L × 40 g/mol = 4 g (교과서 실습 방법 1).</p></div>`:`<div class="feedback bad pop"><b>다시</b><p>질량 = 몰 농도 × 부피(L) × 몰 질량</p></div>`;chk()};
-  balanceWidget($('#bw',el),{target:4,tol:.05,onDone:m=>{S.weigh=true;S.m=m;$('#bw',el).insertAdjacentHTML('beforeend',`<div class="feedback ok pop"><b>칭량 완료: ${m.toFixed(2)} g</b><p>이 NaOH로 1 L를 만들면 ${(m/40).toFixed(4)} M 이에요.</p></div>`);chk()}});
+  balanceWidget($('#bw',el),{target:4,tol:.1,onDone:m=>{S.weigh=true;S.m=m;$('#bw',el).insertAdjacentHTML('beforeend',`<div class="feedback ok pop"><b>칭량 완료: ${m.toFixed(2)} g</b><p>이 NaOH로 1 L를 만들면 ${(m/40).toFixed(4)} M 이에요.</p></div>`);chk()}});
   const getO=numOrder($('#no',el),S.ord);
   $('#noc',el).onclick=()=>{const r=getO();if(r.err){toast(r.err);return}S.ordOk=r.ord.join()===steps.join();$('#nof',el).innerHTML=S.ordOk?`<div class="feedback ok pop"><b>정확해요</b><p>부피 플라스크에 NaOH 고체를 바로 넣고 녹이면 열 때문에 부피가 부정확해져요.</p></div>`:`<div class="feedback bad pop"><b>다시</b><p>녹이기 → 식히기 → 옮기기 → 헹군 물도 넣기 → 표선 맞추고 섞기</p></div>`;chk()};
   function chk(){if(S.calc&&S.weigh&&S.ordOk){markDone('naoh');$('#nnext',el).innerHTML=nextMission('naoh');bindNext(el,'naoh')}}
@@ -1409,7 +1427,7 @@ function a1(el){
     <div class="panel small"><b>이렇게 해요</b><ol style="margin:6px 0 0;padding-left:18px"><li>시약포지를 올리고 영점(TARE)</li><li>약숟가락으로 NaOH를 덜어 4.00 g 근처로</li><li>공기 중 수분을 흡수해 무게가 늘어요 → 빠르게!</li></ol></div>
     <div id="amres">${A.Ct?resNaOH():''}</div></div></div></div>
    ${nextBtn('다음: 시료 준비',!!A.Ct,'NaOH를 칭량하세요')}`;
-  if(!A.Ct)balanceWidget($('#abw',el),{target:4,tol:.08,onDone:m=>{A.mNaOH=m;A.Ct=m/40;A.pts.naoh=Math.abs(m-4)<=.03?1:.7;$('#amres',el).innerHTML=resNaOH();$('#anext',el).disabled=false;$('#anext',el).previousElementSibling?.remove()}});
+  if(!A.Ct)balanceWidget($('#abw',el),{target:4,tol:.1,onDone:m=>{A.mNaOH=m;A.Ct=m/40;A.pts.naoh=Math.abs(m-4)<=.05?1:.8;$('#amres',el).innerHTML=resNaOH();$('#anext',el).disabled=false;$('#anext',el).previousElementSibling?.remove()}});
   else $('#abw',el).innerHTML=`<div class="bal"><div class="lcd">${A.mNaOH.toFixed(2)} g</div><span class="small">칭량 완료</span></div>`;
   bindNextA(el);
 }
