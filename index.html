@@ -667,7 +667,7 @@ function curveSVG(o){
 
 /* ===== 1. 첫 화면 ===== */
 function renderHome(){
-  const RULES=[['① 기초 이론',20,'초보·중급·고급 각 난이도 최고 정답률의 평균 × 20'],['② 기초 실습',20,'완료한 미션 수 ÷ 7 × 20 (기구 · 뷰렛 · 피펫 필러 · 안전 · NaOH · 지시약 변색 · 지시약 선택)'],['③ 심화 실습',40,'준비 · NaOH 조제 · 지시약 선택 · 눈금 읽기 · 종말점 정확도 · 재현성 · 계산 (가장 높은 제출물)'],['④ 결과 보고서',20,'고찰 분량 8 · 핵심어 4 · 오차 원인 4 · 자기 점검 4 (선생님이 조정할 수 있어요)']];
+  const RULES=[['① 기초 이론',20,'기초·심화 각 단계 최고 정답률의 평균 × 20'],['② 기초 실습',20,'완료한 미션 수 ÷ 6 × 20 (기구 · 뷰렛 · 피펫 필러 · 안전 · NaOH · 지시약 변색·선택)'],['③ 심화 실습',40,'준비 · NaOH 조제 · 지시약 선택 · 눈금 읽기 · 종말점 정확도 · 재현성 · 계산 (가장 높은 제출물)'],['④ 결과 보고서',20,'고찰 분량 8 · 핵심어 4 · 오차 원인 4 · 자기 점검 4 (선생님이 조정할 수 있어요)']];
   app.innerHTML=`
   <section class="hero">
     <div>
@@ -762,7 +762,7 @@ function renderHub(){
     <button class="mode" data-go="theory">
       <span class="tag">STEP 1 · 게임 · 20점</span><h3>기초 이론</h3>
       ${hubArt(1)}
-      <ul><li>초성 · 자음 · OX · 괄호 넣기</li><li>짝 맞추기 · 순서 배열 · 골라 골라 · 계산</li><li>초보 / 중급 / 고급 난이도</li></ul>
+      <ul><li>초성 · 자음 · OX · 괄호 넣기</li><li>짝 맞추기 · 순서 배열 · 골라 골라 · 계산</li><li>기초 / 심화 2단계</li></ul>
     </button>
     <button class="mode" data-go="practice">
       <span class="tag">STEP 2 · 가상 실험대 · 20점</span><h3>기초 실습</h3>
@@ -772,7 +772,7 @@ function renderHub(){
     <button class="mode" data-go="adv">
       <span class="tag">STEP 3 · 심화 40점 + 보고서 20점</span><h3>심화 실습</h3>
       ${hubArt(3)}
-      <ul><li>1단계: 교과서 과제 — 식초 + NaOH</li><li>2단계: 염산 · 황산 · 암모니아수</li><li>지시약 선택 · 종말점 판단 · 결과 보고서 제출</li></ul>
+      <ul><li>교과서 실습 과제 — 식초 속 아세트산 + NaOH</li><li>0.1 M NaOH 조제 · 적정 3회</li><li>지시약 선택 · 종말점 판단 · 결과 보고서 제출</li></ul>
     </button>
   </div>${myScoreHTML()}${myRecordsHTML()}`;
   $$('[data-rep]').forEach(b=>b.onclick=()=>showSavedReport(+b.dataset.rep));
@@ -785,9 +785,8 @@ function hubArt(n){
 
 /* ===== 3. 기초 이론 게임 ===== */
 const LEVELS={
-  1:{name:'새내기 적정러',sub:'초보',color:'#2F9E6A',badge:'Lv.1',desc:'산·염기·지시약·기구 이름. 중화 적정 입문 필수 단어를 게임으로 익혀요.',n:10,timer:0},
-  2:{name:'종말점 사냥꾼',sub:'중급',color:'#2A7584',badge:'Lv.2',desc:'산·염기 정의, 짝산·짝염기, 지시약 변색 범위, 염의 성질, 뷰렛 다루기.',n:10,timer:0},
-  3:{name:'적정 마스터',sub:'고급',color:'#9C1F74',badge:'Lv.3',desc:'몰 농도·적정 계산, 2가 산, 지시약 선택 이유, 오차 분석. 문제당 60초!',n:10,timer:60}
+  1:{name:'기초',sub:'기초',color:'#2F9E6A',badge:'1단계',desc:'산·염기·지시약·기구 이름. 중화 적정 입문 필수 단어를 게임으로 익혀요.',n:10,timer:0},
+  2:{name:'심화',sub:'심화',color:'#2A7584',badge:'2단계',desc:'산·염기 정의, 짝산·짝염기, 지시약 변색 범위, 염의 성질, 뷰렛 다루기.',n:10,timer:0}
 };
 const TYPE_NAME={cho:'초성퀴즈',jaeum:'자음퀴즈',blank:'괄호 넣기',ox:'OX 퀴즈',choice:'골라 골라',match:'짝 맞추기',order:'순서 배열',calc:'계산 챌린지'};
 const QB={
@@ -850,31 +849,9 @@ const QB={
  {t:'match',q:'중화 반응과 생성된 염을 짝 지으세요.',pairs:[['HCl + NaOH','NaCl'],['CH₃COOH + NaOH','CH₃COONa'],['HCl + NH₃','NH₄Cl'],['H₂SO₄ + 2KOH','K₂SO₄']],exp:'산의 음이온 + 염기의 양이온 = 염.'},
  {t:'order',q:'뷰렛 준비 순서로 배열하세요.',items:['증류수로 깨끗이 씻기','NaOH 용액으로 2~3회 공세척','깔때기로 NaOH 채우기','깔때기를 빼고 꼭지를 열어 끝의 기포 제거','메니스커스 아랫면을 0 눈금에 맞추기'],exp:'깔때기를 꽂아 둔 채 적정하면 방울이 떨어져 눈금이 변할 수 있어요.'},
  {t:'cho',word:'완충용액',disp:'완충 용액',q:'소량의 산이나 염기를 넣어도 pH가 거의 변하지 않는 용액. 예: CH₃COOH + CH₃COONa',exp:'혈액은 탄산-탄산수소 이온 완충계로 pH 7.3~7.5를 유지해요.'}
-],
-3:[
- {t:'calc',q:'0.1 M NaOH 수용액 1 L를 만드는 데 필요한 NaOH의 질량은? (NaOH 40 g/mol)',a:4,tol:.01,unit:'g',exp:'0.1 mol/L × 1 L × 40 g/mol = 4 g'},
- {t:'calc',q:'희석한 식초 20.00 mL를 0.100 M NaOH로 적정했더니 16.0 mL가 들었다. 희석한 식초의 몰 농도는?',a:.08,tol:.0005,unit:'M',exp:'M × 20.00 = 0.100 × 16.0 → M = 0.0800 M'},
- {t:'calc',q:'위 식초는 원래 식초 10 mL를 증류수 90 mL와 섞은 것이다. 원래 식초의 아세트산 몰 농도는?',a:.8,tol:.005,unit:'M',exp:'10배 희석 → 0.0800 × 10 = 0.800 M'},
- {t:'calc',q:'0.800 M 아세트산 용액 100 mL에 들어 있는 아세트산은 몇 g? (CH₃COOH 60 g/mol)',a:4.8,tol:.02,unit:'g',exp:'0.800 mol/L × 0.1 L × 60 g/mol = 4.8 g → 식초의 아세트산 함량 약 4.8 %'},
- {t:'calc',q:'황산(H₂SO₄) 20.00 mL를 0.100 M NaOH로 적정했더니 20.0 mL가 들었다. 황산의 몰 농도는?',a:.05,tol:.0005,unit:'M',exp:'황산은 2가 산: 2 × M × 20.00 = 1 × 0.100 × 20.0 → M = 0.0500 M'},
- {t:'calc',q:'0.01 M 염산(HCl)의 pH는? (완전히 이온화)',a:2,tol:.01,unit:'',exp:'[H⁺] = 1.0×10⁻² M → pH = 2'},
- {t:'calc',q:'0.001 M NaOH 수용액의 pH는? (25 ℃)',a:11,tol:.01,unit:'',exp:'[OH⁻] = 10⁻³ → pOH = 3 → pH = 14 − 3 = 11'},
- {t:'calc',q:'0.10 M 염산 25.0 mL를 완전히 중화하는 데 필요한 0.20 M NaOH의 부피는?',a:12.5,tol:.05,unit:'mL',exp:'0.10 × 25.0 = 0.20 × V → V = 12.5 mL'},
- {t:'calc',q:'0에서 시작해 세 번 적정했더니 NaOH가 16.3 mL, 16.4 mL, 16.5 mL 들었다. 평균 부피는?',a:16.4,tol:.005,unit:'mL',exp:'(16.3 + 16.4 + 16.5) ÷ 3 = 16.4 mL'},
- {t:'choice',q:'pH 4인 수용액의 [H⁺]는 pH 8인 수용액의 몇 배인가?',opts:['10,000배','4배','2배','40배'],a:0,exp:'pH 1 차이 = 10배 → 4 차이 = 10⁴ = 10,000배 (교과서 80쪽).'},
- {t:'choice',q:'식초(약산)를 NaOH로 적정하면서 메틸 오렌지를 쓰면 어떻게 될까?',opts:['중화점보다 훨씬 먼저 색이 변해 부피가 작게 측정된다','중화점과 정확히 같다','색이 영원히 변하지 않는다','부피가 크게 측정된다'],a:0,exp:'메틸 오렌지는 pH 3.1~4.4에서 변색 → 아세트산이 아직 많이 남아 있을 때 색이 바뀌어요.'},
- {t:'choice',q:'NaOH 고체를 칭량할 때 빠르게 해야 하는 이유는?',opts:['공기 중 수분과 CO₂를 흡수해 질량·농도가 변하기 때문','냄새가 심해서','색이 변해서','폭발하기 때문'],a:0,exp:'NaOH는 조해성이 있어 공기 중 수분을 흡수하고, CO₂와 반응해 Na₂CO₃가 됩니다.'},
- {t:'choice',q:'강산 + 강염기 적정의 중화점 pH와 사용할 수 있는 지시약은?',opts:['pH 7 · 페놀프탈레인, BTB, 메틸 오렌지 모두 가능','pH 4 · 메틸 오렌지만','pH 10 · 페놀프탈레인만','pH 7 · 리트머스만'],a:0,exp:'중화점 근처에서 pH가 약 3~11까지 급격히 변해 세 지시약 모두 한 방울 안에 변색해요.'},
- {t:'ox',q:'종말점을 지나쳐 진한 분홍색이 되면, 계산한 식초의 농도는 실제보다 크게 나온다.',a:true,exp:'NaOH 부피가 크게 측정 → M = M′V′/V 에서 농도가 크게 계산돼요.'},
- {t:'ox',q:'삼각 플라스크 안이 증류수로 젖어 있으면 적정 결과가 달라진다.',a:false,exp:'피펫으로 넣은 아세트산의 몰 수는 그대로라서 필요한 NaOH의 양도 같아요.'},
- {t:'ox',q:'뷰렛을 증류수로만 헹구고 바로 NaOH를 넣으면, 적정 부피가 커져 식초 농도가 크게 계산된다.',a:true,exp:'NaOH가 묽어져 같은 몰 수를 넣으려면 부피가 더 필요 → 공세척이 필요한 이유.'},
- {t:'blank',q:'가수가 다른 산과 염기의 중화 적정: [ ? ] × M × V = n′ × M′ × V′',opts:['n (산의 가수)','ρ (밀도)','T (온도)','K (평형 상수)'],a:0,exp:'산이 내놓는 H⁺ 몰 수 = 염기가 내놓는 OH⁻ 몰 수 → nMV = n′M′V′'},
- {t:'jaeum',word:'몰농도',disp:'몰 농도',q:'용액 1 L 속에 녹아 있는 용질의 몰(mol) 수. 단위 M 또는 mol/L.',exp:'0.1 M NaOH = 1 L 속에 NaOH 0.1 mol(4 g).'},
- {t:'jaeum',word:'이온화도',q:'용해된 전해질의 전체 몰 수에 대해 실제로 이온화된 몰 수의 비율 (0 ≤ α ≤ 1).',exp:'강전해질 α ≈ 1, 약전해질 0 < α ≪ 1, 비전해질 α = 0.'},
- {t:'match',q:'적정 조합과 알맞은 지시약을 짝 지으세요.',pairs:[['약산 + 강염기','페놀프탈레인'],['강산 + 약염기','메틸 오렌지'],['중성 부근 색 변화가 뚜렷','BTB 용액'],['간이 액성 판별','리트머스 종이']],exp:'중화점의 pH가 지시약의 변색 범위 안에 들어가야 해요.'},
- {t:'order',q:'식초의 아세트산 함량(%)을 구하는 계산 순서로 배열하세요.',items:['세 번 적정한 NaOH 부피의 평균 구하기','희석 식초 몰 농도 = M(NaOH) × V(NaOH) ÷ 20 mL','원래 식초 몰 농도 = 희석 몰 농도 × 10','아세트산 질량 = 몰 농도 × 0.1 L × 60 g/mol','함량(%) = 100 mL 속 아세트산 질량(g)'],exp:'부피 → 희석 농도 → 원래 농도 → 질량 → 백분율.'}
-]};
-QB[1].forEach((q,i)=>q.id='1-'+i);QB[2].forEach((q,i)=>q.id='2-'+i);QB[3].forEach((q,i)=>q.id='3-'+i);
+]
+};
+QB[1].forEach((q,i)=>q.id='1-'+i);QB[2].forEach((q,i)=>q.id='2-'+i);
 const GEN=[
  ()=>{const M=pk([.05,.1,.2,.5]),V=pk([100,250,500,1000]);const m=+(M*V/1000*40).toFixed(3);return {t:'calc',q:`${M} M NaOH 수용액 ${V} mL를 만들려면 NaOH 몇 g이 필요할까? (40 g/mol)`,a:m,tol:.005,unit:'g',exp:`${M} × ${V/1000} L × 40 = ${m} g`}},
  ()=>{const Ct=pk([.1,.1,.2]),V=Math.round(rnd(120,240))/10;const C=+(Ct*V/20).toFixed(4);return {t:'calc',q:`산 20.00 mL를 ${Ct} M NaOH로 적정했더니 ${V.toFixed(1)} mL가 들었다. 산(1가)의 몰 농도는? (소수 넷째 자리)`,a:C,tol:.00015,unit:'M',exp:`M = ${Ct} × ${V.toFixed(1)} ÷ 20.00 = ${C.toFixed(4)} M`}},
@@ -886,7 +863,7 @@ const GEN=[
 function pickQuestions(l){
   const n=LEVELS[l].n;const key='seen'+l;let seen=store.get(key,[]);
   const fresh=QB[l].filter(q=>!seen.includes(q.id));
-  let out=[];if(l===3)out=shuffle(GEN).slice(0,3).map(g=>g());
+  let out=[];
   const need=n-out.length;
   const pickFrom=pool=>{const byType={};const res=[];for(const q of shuffle(pool)){byType[q.t]=byType[q.t]||0;if(byType[q.t]<3&&res.length<need){res.push(q);byType[q.t]++}}for(const q of shuffle(pool)){if(res.length>=need)break;if(!res.includes(q))res.push(q)}return res};
   let st=pickFrom(fresh);
@@ -902,8 +879,8 @@ function renderTheory(){
   <h2 style="margin-top:6px">산·염기 · 중화 개념 게임</h2>
   <p class="muted" style="margin-top:8px;max-width:66ch">교과서 「02 수소 이온의 농도: 산과 염기」와 수업자료(PPT·학습지) 내용으로 만든 문제입니다. 하트 3개로 시작해 틀리면 하나씩 잃어요. 연속으로 맞히면 콤보 보너스!</p>
   <div class="levels" style="margin-top:20px">
-   ${[1,2,3].map(l=>{const L=LEVELS[l];return `<button class="lv" style="--c:${L.color}" data-lv="${l}">
-     <span class="row"><span class="badge">${L.badge}</span><span><span class="small muted">${L.sub}</span><br><b style="font-size:19px">${L.name}</b></span></span>
+   ${[1,2].map(l=>{const L=LEVELS[l];return `<button class="lv" style="--c:${L.color}" data-lv="${l}">
+     <span class="row"><span class="badge" style="font-size:16px">${L.badge}</span><b style="font-size:24px">${L.name}</b></span>
      <span class="small">${L.desc}</span>
      <span class="row small muted" style="gap:6px">${[...new Set(QB[l].map(q=>q.t))].map(t=>`<span class="pill">${TYPE_NAME[t]}</span>`).join('')}</span>
      ${best[l]!=null?`<span class="pill ok">최고 ${best[l]}점</span>`:''}
@@ -914,7 +891,7 @@ function renderTheory(){
     <ul class="small muted" style="margin:6px 0 0;padding-left:18px">
       <li>초성퀴즈: 첫 자음만 보고 단어 맞히기 · 자음퀴즈: 모음만 가려진 글자 맞히기</li>
       <li>정답 100점 + 콤보당 20점 보너스 · 힌트를 보면 −40점</li>
-      <li>띄어쓰기·하이픈은 채점에 영향이 없습니다 · 고급은 문제당 60초</li>
+      <li>띄어쓰기·하이픈은 채점에 영향이 없습니다</li>
     </ul>
   </div>`;
   $$('[data-lv]').forEach(b=>b.onclick=()=>startQuiz(+b.dataset.lv));
@@ -1020,7 +997,7 @@ function endQuiz(){
   const msg={S:'뷰렛이 당신을 알아봅니다. 다음 난이도 도전!',A:'거의 다 왔어요. 오답노트만 한 번 보면 S랭크.',B:'개념의 뼈대는 잡혔어요. 오답노트를 꼭 확인하세요.',C:'괜찮아요. 교과서 79~83쪽과 수업자료를 보고 다시 도전!'}[rank];
   const best=store.get('quizBest',{});if(best[Q.l]==null||Q.score>best[Q.l]){best[Q.l]=Q.score;store.set('quizBest',best)}
   const b2=store.get('best',{});b2.theory=Math.max(b2.theory||0,Q.score);store.set('best',b2);
-  record('기초 이론',`${LEVELS[Q.l].sub} · ${LEVELS[Q.l].name}`,Q.score,`정답 ${Q.right}/${total} · ${rank}랭크 · 최대 콤보 ${Q.maxCombo}${Q.hearts<=0?' · 하트 소진':''}${Q.wrong.length?' · 오답: '+Q.wrong.map(w=>TYPE_NAME[w.q.t]).join(', '):''}`);
+  record('기초 이론',LEVELS[Q.l].name,Q.score,`정답 ${Q.right}/${total} · ${rank}랭크 · 최대 콤보 ${Q.maxCombo}${Q.hearts<=0?' · 하트 소진':''}${Q.wrong.length?' · 오답: '+Q.wrong.map(w=>TYPE_NAME[w.q.t]).join(', '):''}`);
   const L=LEVELS[Q.l];
   app.innerHTML=`<div class="card pop" style="text-align:center">
     <p class="eyebrow">${L.badge} ${L.name} 결과</p>
@@ -1029,19 +1006,19 @@ function endQuiz(){
     <div class="row" style="justify-content:center;margin-top:14px">
       <span class="pill acc">점수 ${Q.score}</span><span class="pill ok">정답 ${Q.right}/${total}</span><span class="pill">최대 콤보 ${Q.maxCombo}</span>${Q.hearts<=0?'<span class="pill bad">하트 소진</span>':''}
     </div>
-    <div class="row" style="justify-content:center;margin-top:18px"><button class="btn pri" id="again">다시 도전</button><button class="btn" data-go="theory">난이도 선택</button>${Q.l<3?`<button class="btn" id="up">다음 난이도 →</button>`:`<button class="btn" data-go="practice">기초 실습으로 →</button>`}</div>
+    <div class="row" style="justify-content:center;margin-top:18px"><button class="btn pri" id="again">다시 도전</button><button class="btn" data-go="theory">난이도 선택</button>${Q.l<2?`<button class="btn" id="up">심화 단계 →</button>`:`<button class="btn" data-go="practice">기초 실습으로 →</button>`}</div>
   </div>
   ${Q.wrong.length?`<div class="card" style="margin-top:16px"><h3>오답노트</h3><div class="stack" style="margin-top:10px">${Q.wrong.map(w=>`<div class="panel"><span class="pill">${TYPE_NAME[w.q.t]}</span><p style="margin-top:6px;font-weight:600">${esc(w.q.q)}</p>${w.ans?`<p class="small" style="margin-top:4px">정답: <b>${esc(w.ans)}</b></p>`:''}<p class="small muted" style="margin-top:4px">${esc(w.q.exp)}</p></div>`).join('')}</div></div>`:''}`;
   $('#again').onclick=()=>startQuiz(Q.l);const up=$('#up');if(up)up.onclick=()=>startQuiz(Q.l+1);
 }
 
 /* ===== 4. 기초 실습 ===== */
-const PTABS=[['tools','실험 기구 도감'],['burette','뷰렛 사용법 · 눈금 읽기'],['pipette','피펫 · 부피 플라스크'],['safety','실습실 안전 수칙'],['naoh','0.1 M NaOH 만들기'],['color','지시약 변색 관찰'],['choose','지시약 선택']];
+const PTABS=[['tools','실험 기구 도감'],['burette','뷰렛 사용법 · 눈금 읽기'],['pipette','피펫 · 부피 플라스크'],['safety','실습실 안전 수칙'],['naoh','0.1 M NaOH 만들기'],['indicator','지시약 변색 관찰 · 선택']];
 let PT='tools';
 function renderPractice(){
   const d=store.get('prac',{});
   app.innerHTML=`<p class="eyebrow">STEP 2 · 기초 실습</p><h2 style="margin-top:6px">가상 실험대</h2>
-  <p class="muted" style="margin-top:8px;max-width:68ch">중화 적정에 필요한 기구, 안전 수칙, 용액 만들기, 지시약을 하나씩 익혀요. 미션 7개를 모두 완료하면 심화 실습이 훨씬 쉬워집니다.</p>
+  <p class="muted" style="margin-top:8px;max-width:68ch">중화 적정에 필요한 기구, 안전 수칙, 용액 만들기, 지시약을 하나씩 익혀요. 미션 6개를 모두 완료하면 심화 실습이 훨씬 쉬워집니다.</p>
   <div class="tabs" role="tablist" style="margin-top:16px">${PTABS.map(([k,n],i)=>`<button class="tab ${PT===k?'on':''}" data-t="${k}" role="tab">${i+1}. ${n}${d[k]?' <span class="ck">✓</span>':''}</button>`).join('')}</div>
   <div id="pbody"></div>
   <div class="pnav noprint">${(()=>{const i=PTABS.findIndex(x=>x[0]===PT);const pv=PTABS[i-1],nx=PTABS[i+1];
@@ -1049,7 +1026,7 @@ function renderPractice(){
   const goTab=k=>{PT=k;cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];renderPractice();window.scrollTo(0,0)};
   $$('[data-pnav]').forEach(b=>b.onclick=()=>goTab(b.dataset.pnav));
   $$('.tabs [data-t]').forEach(b=>b.onclick=()=>goTab(b.dataset.t));
-  ({tools:pTools,burette:pBurette,pipette:pPipette,safety:pSafety,naoh:pNaoh,color:pColor,choose:pChoose})[PT]($('#pbody'));
+  ({tools:pTools,burette:pBurette,pipette:pPipette,safety:pSafety,naoh:pNaoh,indicator:pIndicator})[PT]($('#pbody'));
 }
 const MD=new Set();
 function markDone(k){const d=store.get('prac',{});const mk=(CUR&&CUR.id)+k;if(MD.has(mk))return;MD.add(mk);record('기초 실습',(PTABS.find(x=>x[0]===k)||[k,k])[1],100,'미션 완료');if(!d[k]){d[k]=1;store.set('prac',d);const b2=store.get('best',{});b2.practice=Math.round(Object.keys(d).length/PTABS.length*100);store.set('best',b2);const t=$(`[data-t="${k}"]`);if(t&&!t.querySelector('.ck'))t.insertAdjacentHTML('beforeend',' <span class="ck">✓</span>')}
@@ -1299,7 +1276,18 @@ function pNaoh(el){
   function chk(){if(S.calc&&S.weigh&&S.ordOk){markDone('naoh');$('#nnext',el).innerHTML=nextMission('naoh');bindNext(el,'naoh')}}
 }
 
-/* 6. 지시약 변색 관찰 */
+/* 6. 지시약 변색 관찰 · 선택 (한 묶음) */
+let IND_SUB={};
+function pIndicator(el){
+  IND_SUB={};
+  el.innerHTML=`<div class="note">이 미션은 두 부분으로 되어 있어요. <b>① 지시약 변색 관찰</b>로 pH에 따른 색을 익힌 뒤, <b>② 지시약 선택</b>에서 적정에 알맞은 지시약을 골라 보세요. 둘 다 마치면 미션 완료!</div>
+   <h3 style="margin-top:16px">① 지시약 변색 관찰</h3><div id="indA" style="margin-top:8px"></div>
+   <h3 style="margin-top:22px">② 지시약 선택</h3><div id="indB" style="margin-top:8px"></div>
+   <div class="row" style="margin-top:14px;justify-content:flex-end" id="indnext"></div>`;
+  pColor($('#indA',el));pChoose($('#indB',el));
+}
+function subDone(k){IND_SUB[k]=1;if(IND_SUB.color&&IND_SUB.choose){markDone('indicator');const n=$('#indnext');if(n){n.innerHTML=nextMission('indicator');setTimeout(()=>n.scrollIntoView({behavior:'smooth',block:'center'}),300)}}
+  else toast(k==='color'?'① 변색 관찰 완료! 이제 ② 지시약 선택을 하세요.':'② 지시약 선택 완료! ① 변색 관찰도 마치세요.')}
 function pColor(el){
   const S={pH:7,ok:0,q:null};
   const PTS=[{p:1.5,n:'pH 1.5 부근 (강한 산성)'},{p:5.2,n:'pH 5 부근 (약한 산성)'},{p:7,n:'pH 7 부근 (중성)'},{p:9.4,n:'pH 9.5 부근 (약한 염기성)'},{p:12.5,n:'pH 12.5 부근 (강한 염기성)'}];
@@ -1316,7 +1304,7 @@ function pColor(el){
   const bar=()=>`<svg viewBox="0 0 560 26" width="100%" height="26" preserveAspectRatio="none">${Array.from({length:141},(_,i)=>`<rect x="${i*4}" y="0" width="4" height="18" fill="hsl(${Math.max(0,Math.min(270,(i/140)*270))},70%,55%)"/>`).join('')}<rect x="${S.pH/14*560-2}" y="0" width="4" height="26" fill="${INK}"/></svg><div class="row small muted" style="justify-content:space-between"><span>0 산성</span><span>7 중성</span><span>14 염기성</span></div>`;
   const draw=()=>{$('#phv',el).textContent=S.pH.toFixed(1);$('#phbar',el).innerHTML=bar();$('#tb',el).innerHTML=IND_ORDER.map(k=>`<div class="tube">${tubeSVG(indRGBA(IND[k],S.pH,.9))}<span>${IND[k].n}</span><span class="small muted">${indName(IND[k],S.pH)}</span></div>`).join('')};
   draw();$('#ph',el).oninput=e=>{S.pH=+e.target.value;draw()};
-  const quiz=()=>{const c=$('#cq',el);if(S.ok>=5){c.innerHTML=`<h3>② 색 보고 pH 맞히기</h3><p class="bigstat" style="margin-top:8px">5 / 5</p><p>지시약 색으로 액성을 판단할 수 있어요!</p>`;markDone('color');$('#cnext',el).innerHTML=nextMission('color');bindNext(el,'color');return}
+  const quiz=()=>{const c=$('#cq',el);if(S.ok>=5){c.innerHTML=`<h3>② 색 보고 pH 맞히기</h3><p class="bigstat" style="margin-top:8px">5 / 5</p><p>지시약 색으로 액성을 판단할 수 있어요!</p>`;subDone('color');return}
     const t=pk(PTS);const p=t.p+rnd(-.2,.2);
     c.innerHTML=`<div class="row" style="justify-content:space-between"><h3>② 색 보고 pH 맞히기</h3><span class="pill">정답 ${S.ok} / 5</span></div><p class="small muted" style="margin-top:4px">같은 용액에 네 지시약을 각각 넣었더니 아래와 같았어요. 이 용액의 pH는?</p>
      <div class="tubes" style="margin-top:10px">${IND_ORDER.map(k=>`<div class="tube">${tubeSVG(indRGBA(IND[k],p,.9))}<span>${IND[k].n}</span></div>`).join('')}</div>
@@ -1343,7 +1331,7 @@ function pChoose(el){
     </div>`}).join('');
     $$('[data-ci]',el).forEach(b=>b.onclick=()=>{const i=+b.dataset.ci;const s=S[i];s.ind=b.dataset.k;s.ok=judgeIndicator(CASES[i].sc,IND[s.ind]).ok;s.col=null;s.colOk=false;draw()});
     $$('[data-col]',el).forEach(sel=>sel.onchange=()=>{const i=+sel.dataset.col;const s=S[i];s.col=sel.value;s.colOk=sel.value===endChange(CASES[i].sc,IND[s.ind]);draw()});
-    if(S.every(s=>s.ok&&s.colOk)&&!S.fin){S.fin=1;markDone('choose');$('#chnext',el).innerHTML=nextMission('choose')}
+    if(S.every(s=>s.ok&&s.colOk)&&!S.fin){S.fin=1;subDone('choose')}
   };
   draw();
 }
@@ -1366,13 +1354,10 @@ function renderAdv(){
     const reps=store.get('reports',[]);
     app.innerHTML=`<p class="eyebrow">STEP 3 · 심화 실습</p><h2 style="margin-top:6px">중화 적정 → 결과 보고서</h2>
     <p class="muted" style="margin-top:8px;max-width:70ch">용액 조제부터 적정 3회, 계산, 결과 보고서 제출까지 한 번에 진행합니다. 핵심은 <b>알맞은 지시약을 고르고, 색이 바뀌는 그 한 방울에서 멈추는 것(종말점)</b>이에요. 보고서를 제출하면 결과가 선생님께 전달됩니다.</p>
-    <div class="grid g2" style="margin-top:20px">
-     <button class="mode" id="st1"><span class="tag">1단계 · 교과서 실습 과제</span><h3>식초 속 아세트산의 농도</h3>
+    <div class="grid" style="margin-top:20px;max-width:560px">
+     <button class="mode" id="st1"><span class="tag">교과서 실습 과제 · 시작하기 →</span><h3>식초 속 아세트산의 농도</h3>
       ${erlenSVG(indRGBA(IND.pp,8.7,.55),.45,90,110)}
       <ul><li>0.1 M NaOH 직접 조제 (NaOH 4 g + 증류수 1 L)</li><li>식초 10 mL + 증류수 90 mL → 20 mL 적정</li><li>아세트산 몰 농도와 함량(%) 산출</li></ul></button>
-     <div class="mode" style="cursor:default"><span class="tag">2단계 · 다른 산과 염기</span><h3>미지 농도 구하기</h3>
-      <div class="stack" style="gap:8px">${['hcl','h2so4','nh3'].map(k=>`<button class="btn" data-st2="${k}" style="justify-content:space-between;width:100%"><span>${SC[k].title}</span><span class="small muted">${SC[k].type}</span></button>`).join('')}</div>
-      <ul><li>0.1000 M 표준 용액 사용</li><li>2가 산(황산)의 몰 비, 약염기의 지시약 선택에 주의</li></ul></div>
     </div>
     ${reps.length?`<div class="card" style="margin-top:18px"><h3>내가 제출한 보고서</h3><div class="tw" style="margin-top:8px"><table class="table"><tr><th>제출</th><th>과제</th><th>지시약</th><th>결과</th><th>점수</th><th></th></tr>${reps.slice().reverse().map((r,i)=>`<tr><td class="mono small">${new Date(r.time).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.title)}</td><td>${esc(r.ind)}</td><td class="mono">${esc(r.result)}</td><td class="mono">${r.score}</td><td><button class="btn sm" data-rep="${reps.length-1-i}">보기</button></td></tr>`).join('')}</table></div></div>`:''}`;
     $('#st1').onclick=()=>{A=newAdv(1);renderAdv()};
@@ -1381,7 +1366,7 @@ function renderAdv(){
     return;
   }
   app.innerHTML=`<div class="row noprint" style="justify-content:space-between;align-items:flex-end">
-    <div><p class="eyebrow">심화 실습 ${A.stage}단계 · ${esc(A.sc.type)}</p><h2 style="margin-top:6px">${esc(A.sc.title)}</h2></div>
+    <div><p class="eyebrow">심화 실습 · ${esc(A.sc.type)}</p><h2 style="margin-top:6px">${esc(A.sc.title)}</h2></div>
     <div class="row"><span class="pill">${esc(sLabel(getStudent()))}</span><button class="btn sm" id="quitA">과제 나가기</button></div></div>
    <div class="examgrid" style="margin-top:16px"><nav class="stepper" id="stepper"></nav><section id="stepbody"></section></div>`;
   $('#quitA').onclick=()=>{if(A.step<8&&A.step>0&&!confirm('진행 중인 실험이 사라져요. 나갈까요?'))return;A=null;renderAdv()};
@@ -1712,7 +1697,7 @@ function gradeAdv(){
   const lab40=Math.round(items.reduce((a,i)=>a+i[1]*i[2],0)/90*40*10)/10;
   const RS=reportScore(R);const rep20=RS.score;const score=Math.round((lab40+rep20)*10)/10;
   A.graded={items,score,lab40,rep20,rparts:RS.parts,veq,trueC,myC,relErr,range,endF};
-  const title=st1?'1단계 · 식초 속 아세트산':`2단계 · ${sc.title}`;
+  const title=st1?'식초 속 아세트산':sc.title;
   const vols=A.trials.map(t=>fx(t.rf,1));
   const resultTxt=st1?`${A.calc.in.m0} M (${A.calc.in.pct} %)`:`${A.calc.in.m0} M`;
   const detail=`[심화 ${lab40}/40 · 보고서 ${rep20}/20] 지시약 ${ind.n}${A.firstIndOk?'':' (첫 선택 부적합: '+IND[A.firstInd].n+')'} · 적정 ${vols.join(' / ')} mL · 평균 ${A.calc.in.vbar} mL · 결과 ${resultTxt} · 실제 ${trueC.toFixed(4)} M · 상대오차 ${relErr.toFixed(1)} % · 고찰: ${R.disc.trim()}`;
@@ -1756,7 +1741,7 @@ function aGrade(el){
    <div class="grid g2" style="margin-top:14px"><div class="card"><h3>항목별 점수</h3><div class="tw"><table class="table" style="margin-top:8px"><tr><th colspan="2">심화 실습 (40점)</th></tr>${G.items.map(i=>`<tr><td style="text-align:left">${i[0]}</td><td class="mono">${fx(i[1]*i[2]*40/90,1)} / ${fx(i[1]*40/90,1)}</td></tr>`).join('')}
     <tr><th colspan="2">결과 보고서 (20점)</th></tr>${G.rparts.map(p=>`<tr><td style="text-align:left">${p[0]}</td><td class="mono">${p[2]} / ${p[1]}</td></tr>`).join('')}</table></div></div>
     <div class="card"><h3>피드백</h3>${notes.length?`<ul style="margin:8px 0 0;padding-left:18px">${notes.map(n=>`<li style="margin-bottom:6px">${esc(n)}</li>`).join('')}</ul>`:'<p style="margin-top:6px">완벽합니다. 지시약 선택, 종말점, 계산 모두 정확해요.</p>'}</div></div>
-   <div class="row noprint" style="margin-top:16px"><button class="btn" id="prt">보고서 인쇄 / PDF</button><button class="btn pri" id="again">새 시료로 다시 도전</button>${st1?'<button class="btn" id="to2">2단계: 다른 산과 염기 →</button>':''}<button class="btn" id="back">심화 실습 처음으로</button></div>`;
+   <div class="row noprint" style="margin-top:16px"><button class="btn" id="prt">보고서 인쇄 / PDF</button><button class="btn pri" id="again">새 시료로 다시 도전</button><button class="btn" id="back">심화 실습 처음으로</button></div>`;
   $('#prt',el).onclick=()=>{const reps=store.get('reports',[]);showSavedReport(reps.length-1,true)};
   $('#again',el).onclick=()=>{A=newAdv(A.stage,A.stage===2?A.sc.key:null);renderAdv()};
   const t2=$('#to2',el);if(t2)t2.onclick=()=>{A=null;renderAdv()};
@@ -1771,12 +1756,12 @@ function showSavedReport(i,print){
 }
 
 /* ===== 수행평가 점수 (기초 이론 20 · 기초 실습 20 · 심화 실습 40 · 결과 보고서 20) ===== */
-const LVN=['초보','중급','고급'];
+const LVN=['기초','심화'];
 const r1=x=>Math.round(x*10+1e-9)/10;
 const skeyOf=r=>`${r.grade}|${r.cls}|${r.no}|${r.name}`;
 function scoreOf(list,adjR){
   const th=LVN.map(lv=>{let b=0;list.filter(x=>x.kind==='기초 이론'&&String(x.item).startsWith(lv)).forEach(x=>{const m=String(x.detail).match(/정답 (\d+)\/(\d+)/);if(m)b=Math.max(b,+m[1]/+m[2])});return b});
-  const t=r1(th.reduce((a,b)=>a+b,0)/3*20);
+  const t=r1(th.reduce((a,b)=>a+b,0)/LVN.length*20);
   const names=PTABS.map(p=>p[1]);const done=new Set(list.filter(x=>x.kind==='기초 실습'&&names.includes(x.item)).map(x=>x.item));
   const p=r1(done.size/PTABS.length*20);
   let best=null;const subs=list.filter(x=>x.kind==='심화 실습');
@@ -1824,7 +1809,7 @@ function myScoreHTML(){
   const cell=(n,v,max,c)=>`<div class="kpi" style="--c:${c}"><span class="l">${n}</span><span class="v mono">${v}<small> / ${max}</small></span><div class="meter"><i style="width:${v/max*100}%;background:${c}"></i></div></div>`;
   return `<section class="card" style="margin-top:22px"><div class="row" style="justify-content:space-between"><h3>${esc(sLabel(s))}의 수행평가 (예상)</h3><span class="pill acc">총 ${S.total} / 100</span></div>
    <div class="kpis" style="margin-top:12px">${cell('① 기초 이론',S.t,20,'#2F9E6A')}${cell('② 기초 실습',S.p,20,'#2A7584')}${cell('③ 심화 실습',S.a,40,'#9C1F74')}${cell('④ 결과 보고서',S.r,20,'#C8641E')}</div>
-   <p class="small muted" style="margin-top:8px">기초 이론은 초보·중급·고급 각 난이도의 최고 정답률 평균, 기초 실습은 완료한 미션 수(7개), 심화 실습·결과 보고서는 가장 좋은 제출물 기준이에요. 최종 점수는 선생님이 확인해 확정합니다.</p></section>`;
+   <p class="small muted" style="margin-top:8px">기초 이론은 기초·심화 각 단계의 최고 정답률 평균, 기초 실습은 완료한 미션 수(6개), 심화 실습·결과 보고서는 가장 좋은 제출물 기준이에요. 최종 점수는 선생님이 확인해 확정합니다.</p></section>`;
 }
 function myRecordsHTML(){
   const s=getStudent();if(!s)return '';
@@ -1885,14 +1870,14 @@ function drawTeacher(){
     <div class="kpi"><span class="l">학생 수</span><span class="v mono">${list.length}<small>명</small></span></div>
     <div class="kpi"><span class="l">평균 총점</span><span class="v mono">${avg('total')}<small> / 100</small></span></div>
     <div class="kpi"><span class="l">보고서 제출</span><span class="v mono">${list.filter(s=>s.S.best).length}<small>명</small></span></div>
-    <div class="kpi"><span class="l">기초 실습 7개 완료</span><span class="v mono">${list.filter(s=>s.S.done.size>=7).length}<small>명</small></span></div>
+    <div class="kpi"><span class="l">기초 실습 6개 모두 완료</span><span class="v mono">${list.filter(s=>s.S.done.size>=PTABS.length).length}<small>명</small></span></div>
    </div>
    <div class="kpis" style="margin-top:10px">${ST.map(([k,n,m,c])=>`<div class="kpi" style="border-top:4px solid ${c}"><span class="l">${n} 평균</span><span class="v mono">${avg(k)}<small> / ${m}</small></span><div class="meter"><i style="width:${avg(k)/m*100}%;background:${c}"></i></div></div>`).join('')}</div>
    <div class="card" style="margin-top:14px;padding:0;overflow:hidden"><div class="tw"><table class="table roster"><tr>
      <th><button class="linkbtn" data-sort="no">학년-반-번호 ↕</button></th><th>이름</th><th>기초 이론<br><span class="mono small">/20</span></th><th>기초 실습<br><span class="mono small">/20</span></th><th>심화 실습<br><span class="mono small">/40</span></th><th>결과 보고서<br><span class="mono small">/20</span></th><th><button class="linkbtn" data-sort="tot">총점 ↕</button><br><span class="mono small">/100</span></th><th><button class="linkbtn" data-sort="upd">최근 활동 ↕</button></th><th>관리</th></tr>
     ${list.map((s,i)=>`<tr><td class="mono">${s.grade}-${s.cls}-${s.no}</td><td style="font-weight:600">${esc(s.name)}</td><td class="mono">${s.S.t}</td><td class="mono">${s.S.p}</td><td class="mono">${s.S.best?s.S.a:'<span class="muted">—</span>'}</td><td class="mono">${s.S.best||s.S.adjusted?s.S.r:'<span class="muted">—</span>'}${s.S.adjusted?' <span class="pill warn" title="교사 조정">조정</span>':''}</td><td class="mono" style="font-weight:700">${s.S.total}</td><td class="mono small">${dt(s.last)}</td>
      <td style="white-space:nowrap"><button class="btn sm" data-det="${i}">상세</button> <button class="btn sm" data-rs="${i}" style="color:var(--bad)">초기화</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">아직 기록이 없어요</td></tr>'}</table></div></div>
-   <p class="small muted" style="margin-top:8px">점수 기준 — 기초 이론: 초보·중급·고급 최고 정답률의 평균 × 20 · 기초 실습: 완료 미션 ÷ 7 × 20 · 심화 실습(40)·결과 보고서(20): 가장 높은 제출물 기준 (보고서는 상세 화면에서 교사가 조정 가능)</p>`;
+   <p class="small muted" style="margin-top:8px">점수 기준 — 기초 이론: 기초·심화 최고 정답률의 평균 × 20 · 기초 실습: 완료 미션 ÷ 6 × 20 · 심화 실습(40)·결과 보고서(20): 가장 높은 제출물 기준 (보고서는 상세 화면에서 교사가 조정 가능)</p>`;
   $('#fg').onchange=e=>{f.g=e.target.value;drawTeacher()};$('#fc').onchange=e=>{f.c=e.target.value;drawTeacher()};
   $('#fq').oninput=e=>{f.q=e.target.value.trim();clearTimeout(TD.qt);TD.qt=setTimeout(()=>{drawTeacher();const q=$('#fq');q.focus();q.setSelectionRange(q.value.length,q.value.length)},300)};
   $$('[data-sort]').forEach(b=>b.onclick=()=>{TD.sort=b.dataset.sort;drawTeacher()});
@@ -1936,8 +1921,8 @@ function studentDetail(s){
   const log=s.list.filter(x=>x.kind!=='심화 실습'&&x.kind!=='입장').sort((a,b)=>new Date(b.time||b.clientTime)-new Date(a.time||a.clientTime)).slice(0,40);
   modal(`<div class="row" style="justify-content:space-between"><h3>${esc(s.grade)}학년 ${esc(s.cls)}반 ${esc(s.no)}번 ${esc(s.name)}</h3><span class="pill acc">총점 ${S.total} / 100</span></div>
    <div class="kpis" style="margin-top:12px">
-    <div class="kpi"><span class="l">① 기초 이론</span><span class="v mono">${S.t}<small>/20</small></span><span class="small muted">초보 ${Math.round(S.th[0]*100)}% · 중급 ${Math.round(S.th[1]*100)}% · 고급 ${Math.round(S.th[2]*100)}%</span></div>
-    <div class="kpi"><span class="l">② 기초 실습</span><span class="v mono">${S.p}<small>/20</small></span><span class="small muted">${S.done.size}/7 완료${miss.length?' · 남은: '+miss.join(', '):''}</span></div>
+    <div class="kpi"><span class="l">① 기초 이론</span><span class="v mono">${S.t}<small>/20</small></span><span class="small muted">기초 ${Math.round(S.th[0]*100)}% · 심화 ${Math.round(S.th[1]*100)}%</span></div>
+    <div class="kpi"><span class="l">② 기초 실습</span><span class="v mono">${S.p}<small>/20</small></span><span class="small muted">${S.done.size}/${PTABS.length} 완료${miss.length?' · 남은: '+miss.join(', '):''}</span></div>
     <div class="kpi"><span class="l">③ 심화 실습</span><span class="v mono">${S.a}<small>/40</small></span><span class="small muted">제출 ${S.subs.length}회 · 최고 기준</span></div>
     <div class="kpi"><span class="l">④ 결과 보고서</span><span class="v mono">${S.r}<small>/20</small></span><span class="small muted">자동 ${S.auto}${S.adjusted?' → 교사 조정':''}</span></div></div>
    <div class="panel row" style="margin-top:12px;gap:8px"><b class="small">결과 보고서 점수 조정</b><input id="adj" type="number" min="0" max="20" step="0.5" value="${S.adjusted?S.r:''}" placeholder="${S.auto}" style="width:90px"><button class="btn sm pri" id="adjs">저장</button>${S.adjusted?'<button class="btn sm" id="adjc">자동 점수로 되돌리기</button>':''}</div>
