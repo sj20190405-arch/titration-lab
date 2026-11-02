@@ -339,6 +339,21 @@ textarea:focus-visible{outline:3px solid var(--glass);outline-offset:2px}
 .oi.dragging{cursor:grabbing;border-color:var(--accent);box-shadow:0 8px 20px rgba(0,0,0,.15);background:var(--accent-soft);position:relative;z-index:2}
 .pnav{display:flex;justify-content:space-between;gap:10px;margin-top:22px;padding-top:14px;border-top:1px solid var(--line)}
 #printzone{display:none}
+.igwarn{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(120,6,10,.82);backdrop-filter:blur(3px);animation:igin .2s}
+.igwarn.calm{background:rgba(20,24,32,.72)}
+@keyframes igin{from{opacity:0}to{opacity:1}}
+.igbox{background:#fff;color:#1b1f27;border-radius:16px;max-width:480px;width:100%;padding:24px 22px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.igbox h3{margin:10px 0 6px;font-size:20px}.igbox p{margin:6px 0;line-height:1.6}
+.igicon{width:58px;height:58px;margin:0 auto;border-radius:50%;background:#D3121A;color:#fff;font-size:32px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.igicon.ok{background:#2A7584;font-size:26px}
+.iglog{margin:10px 0 14px;padding:8px 10px;border-radius:8px;background:#fdecec;color:#9b0e14;font-size:13px}
+.igbox button[disabled]{opacity:.55;cursor:not-allowed}
+.igbadge{position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:250;padding:6px 14px;border-radius:999px;background:#2A7584;color:#fff;font-size:13px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.2);pointer-events:none}
+.igbadge.bad{background:#D3121A;animation:igpulse 1.6s infinite}
+@keyframes igpulse{50%{box-shadow:0 0 0 6px rgba(211,18,26,.25)}}
+.igpill{display:inline-block;padding:2px 8px;border-radius:999px;background:#fdecec;color:#c0101a;font-weight:700;font-size:12px;white-space:nowrap}
+body.igon{-webkit-user-select:none;user-select:none}
+body.igon input,body.igon textarea{-webkit-user-select:text;user-select:text}
 @media print{
   body.printing>*:not(#printzone){display:none!important}
   body.printing #printzone{display:block}
@@ -402,6 +417,66 @@ function modal(html,onMount,wide){const bg=document.createElement('div');bg.clas
 let cleanup=[];let HOME_TAB='stu';
 function onLeave(fn){cleanup.push(fn)}
 
+/* ===== 시험 모드: 전체화면 + 화면 이탈 감지·기록 (흡광광도법 실험실과 동일) ===== */
+const IG={on:false,ctx:'',st:null,awayAt:null,why:''};
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement;
+const canFS=()=>!!(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen);
+function goFull(){const d=document.documentElement;try{const p=(d.requestFullscreen||d.webkitRequestFullscreen).call(d);if(p&&p.catch)p.catch(()=>{})}catch(e){}}
+function igStart(ctx,st){IG.on=true;IG.ctx=ctx;IG.st=st;IG.awayAt=null;document.body.classList.add('igon');igBadge()}
+function igStop(){const st=IG.st,was=IG.on;IG.on=false;IG.awayAt=null;$('#igwarn')?.remove();igBadge();document.body.classList.remove('igon');if(IG.t0)document.title=IG.t0;
+  if(was&&st&&st.n)igSummary(st);try{if(fsEl())(document.exitFullscreen||document.webkitExitFullscreen).call(document)}catch(e){}}
+const igText=st=>st&&st.n?`[화면 이탈 ${st.n}회·${Math.round(st.ms/1000)}초] `:'';
+function igAway(why){if(!IG.on||IG.awayAt)return;IG.awayAt=Date.now();IG.why=why;IG.t0=IG.t0||document.title;document.title='⚠ 시험 중 이탈 — 기록 중!';const b=$('#igbadge');if(b){b.textContent='⚠ 화면 이탈 감지 · 기록 중';b.classList.add('bad')}}
+function igBack(){if(IG.t0)document.title=IG.t0;if(!IG.on||!IG.awayAt)return;const d=Date.now()-IG.awayAt;IG.awayAt=null;if(d<700){igBadge();return}
+  IG.st.n++;IG.st.ms+=d;record('화면 이탈',IG.ctx,0,`${IG.why} · ${Math.round(d/1000)}초`);igBadge();igWarn()}
+function igWarn(){
+  if(!IG.on)return;$('#igwarn')?.remove();const st=IG.st;
+  const w=document.createElement('div');w.id='igwarn';w.className='igwarn';
+  w.innerHTML=`<div class="igbox"><div class="igicon">!</div><h3>수행평가 중 화면을 벗어났어요</h3>
+   <p>다른 창·탭으로 이동하거나 전체화면을 해제한 기록이 <b>${st.n}회 (총 ${Math.round(st.ms/1000)}초)</b> 남았습니다.<br>이 기록은 선생님 화면에 그대로 표시됩니다.</p>
+   <div class="iglog">이번 이탈: <b>${esc(IG.why||'화면 이탈')}</b> · ${new Date().toLocaleTimeString('ko-KR')}</div>
+   <button class="btn pri" id="igback" disabled>확인했습니다 (3)</button></div>`;
+  document.body.appendChild(w);const bt=$('#igback');let c=3;
+  const iv=setInterval(()=>{c--;if(!document.body.contains(bt)){clearInterval(iv);return}
+    if(c>0)bt.textContent=`확인했습니다 (${c})`;else{clearInterval(iv);bt.disabled=false;bt.textContent=canFS()?'확인했습니다 · 전체화면으로 돌아가기':'확인했습니다 · 평가로 돌아가기'}},1000);
+  bt.onclick=()=>{goFull();w.remove()};
+}
+function igBadge(){const b=$('#igbadge');if(!IG.on){b&&b.remove();return}
+  const t=`🔒 시험 모드${IG.st&&IG.st.n?` · 이탈 ${IG.st.n}회`:''}`;
+  if(b){b.textContent=t;b.classList.toggle('bad',!!(IG.st&&IG.st.n));return}
+  const e=document.createElement('div');e.id='igbadge';e.className='igbadge'+(IG.st&&IG.st.n?' bad':'');e.textContent=t;document.body.appendChild(e)}
+function igSummary(st){$('#igsum')?.remove();
+  const w=document.createElement('div');w.id='igsum';w.className='igwarn';
+  w.innerHTML=`<div class="igbox"><div class="igicon">!</div><h3>화면 이탈 기록 안내</h3>
+   <p>이번 평가 중 화면 이탈이 <b>${st.n}회 (총 ${Math.round(st.ms/1000)}초)</b> 기록되었습니다.<br>이 기록은 점수와 함께 선생님께 전달되었습니다.</p>
+   <button class="btn pri" id="igsumok">확인</button></div>`;
+  document.body.appendChild(w);$('#igsumok').onclick=()=>w.remove()}
+/* 시험 시작 안내 → 버튼 클릭(사용자 동작)으로 전체화면 진입 */
+function igGate(title,ctx,st,then,onCancel){
+  $('#igwarn')?.remove();
+  const w=document.createElement('div');w.id='igwarn';w.className='igwarn calm';
+  w.innerHTML=`<div class="igbox"><div class="igicon ok">🔒</div><h3>${esc(title)} · 시험 모드</h3>
+   <ul style="text-align:left;margin:10px 0 0;padding-left:18px;line-height:1.8">
+    <li>시작하면 ${canFS()?'<b>전체화면</b>으로 바뀝니다.':'시험 모드가 켜집니다.'}</li>
+    <li>다른 탭·창(AI, 검색 등)으로 이동하거나 전체화면을 해제하면 <b>횟수와 시간이 기록</b>되어 선생님께 전달됩니다.</li>
+    <li>평가 중에는 복사·붙여넣기·마우스 오른쪽 클릭이 막힙니다.</li>
+    <li>평가가 끝나면 시험 모드가 자동으로 풀립니다.</li></ul>
+   <div class="row" style="justify-content:center;margin-top:16px"><button class="btn" id="igcancel">취소</button><button class="btn pri" id="igok">동의하고 시작</button></div></div>`;
+  document.body.appendChild(w);
+  $('#igcancel').onclick=()=>{w.remove();onCancel?onCancel():go('hub')};
+  $('#igok').onclick=()=>{goFull();w.remove();igStart(ctx,st);then&&then()};
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)igAway('다른 탭·창으로 이동');else igBack()});
+window.addEventListener('blur',()=>igAway('다른 창 클릭'));
+window.addEventListener('focus',()=>igBack());
+['fullscreenchange','webkitfullscreenchange'].forEach(ev=>document.addEventListener(ev,()=>{
+  if(!IG.on)return;
+  if(!fsEl()){igAway('전체화면 해제');setTimeout(()=>{if(IG.on&&!fsEl()){if(IG.awayAt){const d=Date.now()-IG.awayAt;IG.awayAt=null;IG.st.n++;IG.st.ms+=Math.max(d,1000);record('화면 이탈',IG.ctx,0,'전체화면 해제');igBadge()}igWarn()}},300)}
+  else if(IG.awayAt)igBack()}));
+/* 시험 중 복사·붙여넣기·오른쪽 클릭 막기 */
+['copy','cut','paste','contextmenu'].forEach(ev=>document.addEventListener(ev,e=>{if(IG.on){e.preventDefault();toast('시험 모드에서는 복사·붙여넣기를 사용할 수 없어요')}}));
+document.addEventListener('keydown',e=>{if(IG.on&&(e.key==='F12'||((e.ctrlKey||e.metaKey)&&e.shiftKey&&/^[ijc]$/i.test(e.key))||((e.ctrlKey||e.metaKey)&&/^[uU]$/.test(e.key)))){e.preventDefault();toast('시험 모드에서는 사용할 수 없는 기능이에요')}});
+
 
 /* 끌어서 순서 정하기 (마우스 · 터치) */
 function numOrder(host,items){
@@ -429,7 +504,7 @@ const ROUTES={home:renderHome,hub:renderHub,theory:renderTheory,practice:renderP
 const CRUMB={hub:'중화 적정',theory:'기초 이론',practice:'기초 실습',adv:'심화 실습',teacher:'교사용 결과'};
 function go(r){if(location.hash==='#'+r)render();else location.hash=r}
 function render(){
-  cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];
+  cleanup.forEach(f=>{try{f()}catch(e){}});cleanup=[];if(IG.on)igStop();
   let r=(location.hash||'#home').slice(1);if(!ROUTES[r])r='home';
   if(r==='teacher'&&!TEACH){r='home';HOME_TAB='tea'}
   else if(!['home','teacher'].includes(r)&&!getStudent()){r='home';HOME_TAB='stu';setTimeout(()=>toast('먼저 학년·반·번호·이름을 입력하고 입장하세요'),60)}
@@ -896,7 +971,7 @@ function renderTheory(){
   </div>`;
   $$('[data-lv]').forEach(b=>b.onclick=()=>startQuiz(+b.dataset.lv));
 }
-function startQuiz(l){Q={l,qs:pickQuestions(l),i:0,hearts:3,score:0,combo:0,maxCombo:0,wrong:[],right:0,hint:false};showQ()}
+function startQuiz(l){Q={l,qs:pickQuestions(l),i:0,hearts:3,score:0,combo:0,maxCombo:0,wrong:[],right:0,hint:false,t0:Date.now(),ig:{n:0,ms:0}};const nm='기초 이론 '+LEVELS[l].name;igGate(nm,nm,Q.ig,()=>{Q.t0=Date.now();showQ()},()=>{Q=null})}
 function hudHTML(){
   const L=LEVELS[Q.l];
   return `<div class="hud">
@@ -991,13 +1066,13 @@ function judge(ok,ans){
   const n=$('#next');n.focus();n.onclick=()=>{if(Q.hearts<=0||Q.i+1>=Q.qs.length)endQuiz();else{Q.i++;showQ()}};
 }
 function endQuiz(){
-  clearInterval(qTimer);
-  const total=Q.qs.length,rate=Q.right/total;
+  clearInterval(qTimer);if(IG.on&&IG.ctx.startsWith('기초 이론'))igStop();
+  const total=Q.qs.length,rate=Q.right/total;const qsec=Math.round((Date.now()-(Q.t0||Date.now()))/1000);
   const rank=Q.hearts<=0?'C':rate>=.9?'S':rate>=.75?'A':rate>=.55?'B':'C';
   const msg={S:'뷰렛이 당신을 알아봅니다. 다음 난이도 도전!',A:'거의 다 왔어요. 오답노트만 한 번 보면 S랭크.',B:'개념의 뼈대는 잡혔어요. 오답노트를 꼭 확인하세요.',C:'괜찮아요. 교과서 79~83쪽과 수업자료를 보고 다시 도전!'}[rank];
   const best=store.get('quizBest',{});if(best[Q.l]==null||Q.score>best[Q.l]){best[Q.l]=Q.score;store.set('quizBest',best)}
   const b2=store.get('best',{});b2.theory=Math.max(b2.theory||0,Q.score);store.set('best',b2);
-  record('기초 이론',LEVELS[Q.l].name,Q.score,`정답 ${Q.right}/${total} · ${rank}랭크 · 최대 콤보 ${Q.maxCombo}${Q.hearts<=0?' · 하트 소진':''}${Q.wrong.length?' · 오답: '+Q.wrong.map(w=>TYPE_NAME[w.q.t]).join(', '):''}`);
+  record('기초 이론',LEVELS[Q.l].name,Q.score,`${igText(Q.ig)}소요 ${Math.floor(qsec/60)}분 ${qsec%60}초 · 정답 ${Q.right}/${total} · ${rank}랭크 · 최대 콤보 ${Q.maxCombo}${Q.hearts<=0?' · 하트 소진':''}${Q.wrong.length?' · 오답: '+Q.wrong.map(w=>TYPE_NAME[w.q.t]).join(', '):''}`);
   const L=LEVELS[Q.l];
   app.innerHTML=`<div class="card pop" style="text-align:center">
     <p class="eyebrow">${L.badge} ${L.name} 결과</p>
@@ -1360,7 +1435,7 @@ function renderAdv(){
       <ul><li>0.1 M NaOH 직접 조제 (NaOH 4 g + 증류수 1 L)</li><li>식초 10 mL + 증류수 90 mL → 20 mL 적정</li><li>아세트산 몰 농도와 함량(%) 산출</li></ul></button>
     </div>
     ${reps.length?`<div class="card" style="margin-top:18px"><h3>내가 제출한 보고서</h3><div class="tw" style="margin-top:8px"><table class="table"><tr><th>제출</th><th>과제</th><th>지시약</th><th>결과</th><th>점수</th><th></th></tr>${reps.slice().reverse().map((r,i)=>`<tr><td class="mono small">${new Date(r.time).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>${esc(r.title)}</td><td>${esc(r.ind)}</td><td class="mono">${esc(r.result)}</td><td class="mono">${r.score}</td><td><button class="btn sm" data-rep="${reps.length-1-i}">보기</button></td></tr>`).join('')}</table></div></div>`:''}`;
-    $('#st1').onclick=()=>{A=newAdv(1);renderAdv()};
+    $('#st1').onclick=()=>{A=newAdv(1);A.ig={n:0,ms:0};igGate('심화 실습 · 식초 속 아세트산','심화 실습',A.ig,()=>renderAdv(),()=>{A=null})};
     $$('[data-st2]').forEach(b=>b.onclick=()=>{A=newAdv(2,b.dataset.st2);renderAdv()});
     $$('[data-rep]').forEach(b=>b.onclick=()=>showSavedReport(+b.dataset.rep));
     return;
@@ -1369,8 +1444,9 @@ function renderAdv(){
     <div><p class="eyebrow">심화 실습 · ${esc(A.sc.type)}</p><h2 style="margin-top:6px">${esc(A.sc.title)}</h2></div>
     <div class="row"><span class="pill">${esc(sLabel(getStudent()))}</span><button class="btn sm" id="quitA">과제 나가기</button></div></div>
    <div class="examgrid" style="margin-top:16px"><nav class="stepper" id="stepper"></nav><section id="stepbody"></section></div>`;
-  $('#quitA').onclick=()=>{if(A.step<8&&A.step>0&&!confirm('진행 중인 실험이 사라져요. 나갈까요?'))return;A=null;renderAdv()};
+  $('#quitA').onclick=()=>{if(A.step<8&&A.step>0&&!confirm('진행 중인 실험이 사라져요. 나갈까요?'))return;if(IG.on)igStop();A=null;renderAdv()};
   drawStepper();renderStep();
+  if(!A.graded&&!IG.on){A.ig=A.ig||{n:0,ms:0};igGate('심화 실습 · 이어서 하기','심화 실습',A.ig,null)}
 }
 function drawStepper(){
   $('#stepper').innerHTML=STEPS[A.stage].map((n,i)=>`<button class="sb ${i<A.maxStep||(i===8&&A.graded)?'done':''} ${i===A.step?'cur':''}" data-s="${i}" ${i>A.maxStep||(A.graded&&i<8)?'disabled':''}><span class="d">${i+1}</span>${n}</button>`).join('');
@@ -1671,6 +1747,7 @@ function aRep(el){
 
 /* 채점 */
 function gradeAdv(){
+  if(IG.on&&IG.ctx==='심화 실습')igStop();
   const sc=A.sc,st1=A.stage===1,ind=IND[A.ind],R=A.rep;
   const veq=veqOf(sc,A.Ca,20,A.Ct);
   const readF=A.trials.reduce((a,t)=>a+t.rfOk,0)/A.trials.length;
@@ -1700,7 +1777,7 @@ function gradeAdv(){
   const title=st1?'식초 속 아세트산':sc.title;
   const vols=A.trials.map(t=>fx(t.rf,1));
   const resultTxt=st1?`${A.calc.in.m0} M (${A.calc.in.pct} %)`:`${A.calc.in.m0} M`;
-  const detail=`[심화 ${lab40}/40 · 보고서 ${rep20}/20] 지시약 ${ind.n}${A.firstIndOk?'':' (첫 선택 부적합: '+IND[A.firstInd].n+')'} · 적정 ${vols.join(' / ')} mL · 평균 ${A.calc.in.vbar} mL · 결과 ${resultTxt} · 실제 ${trueC.toFixed(4)} M · 상대오차 ${relErr.toFixed(1)} % · 고찰: ${R.disc.trim()}`;
+  const detail=`[심화 ${lab40}/40 · 보고서 ${rep20}/20] ${igText(A.ig)}지시약 ${ind.n}${A.firstIndOk?'':' (첫 선택 부적합: '+IND[A.firstInd].n+')'} · 적정 ${vols.join(' / ')} mL · 평균 ${A.calc.in.vbar} mL · 결과 ${resultTxt} · 실제 ${trueC.toFixed(4)} M · 상대오차 ${relErr.toFixed(1)} % · 고찰: ${R.disc.trim()}`;
   record('심화 실습',title,score,detail,{
     stage:A.stage,acid:sc.acid,titrant:st1?`NaOH ${A.Ct.toFixed(4)} M`:sc.titrant,ind:ind.n+(A.firstIndOk?'':' (첫 선택 '+IND[A.firstInd].n+')'),change:endChange(sc,ind),
     ct:+A.Ct.toFixed(4),va:20,v1:vols[0],v2:vols[1],v3:vols[2],vbar:A.calc.in.vbar,myC:A.calc.in.m0,trueC:+trueC.toFixed(4),relErr:+relErr.toFixed(2),pct:st1?A.calc.in.pct:'',disc:R.disc.trim(),errs:ERRS.filter((e,i)=>R.errs[i]).join(' / '),lab40,rep20,score});
@@ -1843,7 +1920,7 @@ async function reloadTeacher(){try{const j=await tcall({action:'data',key:TEACH.
 function buildRoster(){
   const rows=(TD.data.rows||[]).filter(r=>r.kind);const adj=TD.data.adj||{};
   const by={};rows.forEach(r=>{const k=skeyOf(r);(by[k]=by[k]||{k,grade:r.grade,cls:r.cls,no:r.no,name:r.name,list:[]}).list.push(r)});
-  return Object.values(by).map(s=>{const S=scoreOf(s.list,adj[s.k]);const last=s.list.map(x=>new Date(x.time||x.clientTime)).sort((a,b)=>b-a)[0];return {...s,S,last}});
+  return Object.values(by).map(s=>{const S=scoreOf(s.list,adj[s.k]);const last=s.list.map(x=>new Date(x.time||x.clientTime)).sort((a,b)=>b-a)[0];const aw=s.list.filter(x=>x.kind==='화면 이탈');const away=aw.length,awayS=aw.reduce((a,x)=>a+(+(String(x.detail).match(/(\d+)초/)||[0,0])[1]),0);return {...s,S,last,away,awayS}});
 }
 function renderTeacher(){
   if(!TEACH){HOME_TAB='tea';go('home');return}
@@ -1854,7 +1931,7 @@ function drawTeacher(){
   const f=TD.f;const all=buildRoster();
   const grades=[...new Set(all.map(s=>String(s.grade)))].sort(),classes=[...new Set(all.map(s=>String(s.cls)))].sort((a,b)=>a-b);
   let list=all.filter(s=>(!f.g||String(s.grade)===f.g)&&(!f.c||String(s.cls)===f.c)&&(!f.q||String(s.name).includes(f.q)));
-  const srt={no:(a,b)=>a.grade-b.grade||a.cls-b.cls||a.no-b.no,tot:(a,b)=>b.S.total-a.S.total,upd:(a,b)=>(b.last||0)-(a.last||0)}[TD.sort];list.sort(srt);
+  const srt={no:(a,b)=>a.grade-b.grade||a.cls-b.cls||a.no-b.no,tot:(a,b)=>b.S.total-a.S.total,upd:(a,b)=>(b.last||0)-(a.last||0),away:(a,b)=>b.away-a.away||b.awayS-a.awayS}[TD.sort];list.sort(srt);
   const avg=k=>list.length?r1(list.reduce((a,s)=>a+s.S[k],0)/list.length):0;
   const ST=[['t','① 기초 이론',20,'#2F9E6A'],['p','② 기초 실습',20,'#2A7584'],['a','③ 심화 실습',40,'#9C1F74'],['r','④ 결과 보고서',20,'#C8641E']];
   const dt=d=>d?new Date(d).toLocaleString('ko-KR',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'}):'';
@@ -1866,18 +1943,19 @@ function drawTeacher(){
     <label class="row small" style="gap:6px">반 <select id="fc"><option value="">전체</option>${classes.map(c=>`<option ${f.c===c?'selected':''}>${c}</option>`).join('')}</select></label>
     <label class="row small" style="gap:6px;flex:1;min-width:180px">이름 <input id="fq" value="${esc(f.q)}" placeholder="이름으로 찾기" style="flex:1"></label>
    </div>
-   <div class="kpis" style="margin-top:14px">
+   <div class="kpis" style="margin-top:14px;grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
     <div class="kpi"><span class="l">학생 수</span><span class="v mono">${list.length}<small>명</small></span></div>
     <div class="kpi"><span class="l">평균 총점</span><span class="v mono">${avg('total')}<small> / 100</small></span></div>
     <div class="kpi"><span class="l">보고서 제출</span><span class="v mono">${list.filter(s=>s.S.best).length}<small>명</small></span></div>
+    <div class="kpi"><span class="l">화면 이탈 학생</span><span class="v mono" style="color:${list.some(s=>s.away)?'var(--bad)':'inherit'}">${list.filter(s=>s.away).length}<small>명</small></span></div>
     <div class="kpi"><span class="l">기초 실습 6개 모두 완료</span><span class="v mono">${list.filter(s=>s.S.done.size>=PTABS.length).length}<small>명</small></span></div>
    </div>
    <div class="kpis" style="margin-top:10px">${ST.map(([k,n,m,c])=>`<div class="kpi" style="border-top:4px solid ${c}"><span class="l">${n} 평균</span><span class="v mono">${avg(k)}<small> / ${m}</small></span><div class="meter"><i style="width:${avg(k)/m*100}%;background:${c}"></i></div></div>`).join('')}</div>
    <div class="card" style="margin-top:14px;padding:0;overflow:hidden"><div class="tw"><table class="table roster"><tr>
-     <th><button class="linkbtn" data-sort="no">학년-반-번호 ↕</button></th><th>이름</th><th>기초 이론<br><span class="mono small">/20</span></th><th>기초 실습<br><span class="mono small">/20</span></th><th>심화 실습<br><span class="mono small">/40</span></th><th>결과 보고서<br><span class="mono small">/20</span></th><th><button class="linkbtn" data-sort="tot">총점 ↕</button><br><span class="mono small">/100</span></th><th><button class="linkbtn" data-sort="upd">최근 활동 ↕</button></th><th>관리</th></tr>
-    ${list.map((s,i)=>`<tr><td class="mono">${s.grade}-${s.cls}-${s.no}</td><td style="font-weight:600">${esc(s.name)}</td><td class="mono">${s.S.t}</td><td class="mono">${s.S.p}</td><td class="mono">${s.S.best?s.S.a:'<span class="muted">—</span>'}</td><td class="mono">${s.S.best||s.S.adjusted?s.S.r:'<span class="muted">—</span>'}${s.S.adjusted?' <span class="pill warn" title="교사 조정">조정</span>':''}</td><td class="mono" style="font-weight:700">${s.S.total}</td><td class="mono small">${dt(s.last)}</td>
-     <td style="white-space:nowrap"><button class="btn sm" data-det="${i}">상세</button> <button class="btn sm" data-rs="${i}" style="color:var(--bad)">초기화</button></td></tr>`).join('')||'<tr><td colspan="9" class="muted">아직 기록이 없어요</td></tr>'}</table></div></div>
-   <p class="small muted" style="margin-top:8px">점수 기준 — 기초 이론: 기초·심화 최고 정답률의 평균 × 20 · 기초 실습: 완료 미션 ÷ 6 × 20 · 심화 실습(40)·결과 보고서(20): 가장 높은 제출물 기준 (보고서는 상세 화면에서 교사가 조정 가능)</p>`;
+     <th><button class="linkbtn" data-sort="no">학년-반-번호 ↕</button></th><th>이름</th><th>기초 이론<br><span class="mono small">/20</span></th><th>기초 실습<br><span class="mono small">/20</span></th><th>심화 실습<br><span class="mono small">/40</span></th><th>결과 보고서<br><span class="mono small">/20</span></th><th><button class="linkbtn" data-sort="tot">총점 ↕</button><br><span class="mono small">/100</span></th><th><button class="linkbtn" data-sort="away">화면 이탈 ↕</button></th><th><button class="linkbtn" data-sort="upd">최근 활동 ↕</button></th><th>관리</th></tr>
+    ${list.map((s,i)=>`<tr><td class="mono">${s.grade}-${s.cls}-${s.no}</td><td style="font-weight:600">${esc(s.name)}</td><td class="mono">${s.S.t}</td><td class="mono">${s.S.p}</td><td class="mono">${s.S.best?s.S.a:'<span class="muted">—</span>'}</td><td class="mono">${s.S.best||s.S.adjusted?s.S.r:'<span class="muted">—</span>'}${s.S.adjusted?' <span class="pill warn" title="교사 조정">조정</span>':''}</td><td class="mono" style="font-weight:700">${s.S.total}</td><td>${s.away?`<span class="igpill">${s.away}회·${s.awayS}초</span>`:'<span class="muted">—</span>'}</td><td class="mono small">${dt(s.last)}</td>
+     <td style="white-space:nowrap"><button class="btn sm" data-det="${i}">상세</button> <button class="btn sm" data-rs="${i}" style="color:var(--bad)">초기화</button></td></tr>`).join('')||'<tr><td colspan="10" class="muted">아직 기록이 없어요</td></tr>'}</table></div></div>
+   <p class="small muted" style="margin-top:8px">화면 이탈 — 기초 이론 퀴즈·심화 실습 중 다른 탭·창 이동, 전체화면 해제 횟수와 시간 (상세 화면에서 내역 확인) · 점수 기준 — 기초 이론: 기초·심화 최고 정답률의 평균 × 20 · 기초 실습: 완료 미션 ÷ 6 × 20 · 심화 실습(40)·결과 보고서(20): 가장 높은 제출물 기준 (보고서는 상세 화면에서 교사가 조정 가능)</p>`;
   $('#fg').onchange=e=>{f.g=e.target.value;drawTeacher()};$('#fc').onchange=e=>{f.c=e.target.value;drawTeacher()};
   $('#fq').oninput=e=>{f.q=e.target.value.trim();clearTimeout(TD.qt);TD.qt=setTimeout(()=>{drawTeacher();const q=$('#fq');q.focus();q.setSelectionRange(q.value.length,q.value.length)},300)};
   $$('[data-sort]').forEach(b=>b.onclick=()=>{TD.sort=b.dataset.sort;drawTeacher()});
@@ -1909,8 +1987,8 @@ function changePw(){
       try{const j=await tcall({action:'setpw',key:TEACH.pw,newpw:a});if(!j.ok){toast(j.error||'실패');return}TEACH.pw=a;close();toast('비밀번호를 바꿨어요')}catch(err){toast('요청에 실패했어요')}})});
 }
 function downloadCSV(list){
-  const head=['학년','반','번호','이름','기초 이론(20)','기초 실습(20)','심화 실습(40)','결과 보고서(20)','총점(100)','보고서 조정'];
-  const rows=list.map(s=>[s.grade,s.cls,s.no,s.name,s.S.t,s.S.p,s.S.a,s.S.r,s.S.total,s.S.adjusted?'교사 조정':'']);
+  const head=['학년','반','번호','이름','기초 이론(20)','기초 실습(20)','심화 실습(40)','결과 보고서(20)','총점(100)','보고서 조정','화면 이탈(회)','화면 이탈(초)'];
+  const rows=list.map(s=>[s.grade,s.cls,s.no,s.name,s.S.t,s.S.p,s.S.a,s.S.r,s.S.total,s.S.adjusted?'교사 조정':'',s.away,s.awayS]);
   const csv='﻿'+[head,...rows].map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\r\n');
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`중화적정_수행평가_${new Date().toLocaleDateString('ko-KR').replace(/\. /g,'-').replace('.','')}.csv`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},500);
 }
